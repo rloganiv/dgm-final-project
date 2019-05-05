@@ -1,1 +1,8 @@
+# Model requirements
 torch==1.0.1.post2
+
+# Testing stuff
+pytest
+pytest-cov
+coverage
+codecov
