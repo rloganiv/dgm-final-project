@@ -1,0 +1,24 @@
+sudo: false
+dist: trusty
+language: python
+
+cache:
+    directories:
+    - /home/travis/download
+    - /home/travis/.cache/pip
+
+matrix:
+    include:
+        - env: PYTHON_VERSION="3.6" COVERAGE="true"
+
+notifications:
+    email: false
+
+branches:
+    only:
+        - master
+
+install: source build_tools/travis/install.sh
+script: bash build_tools/travis/test_script.sh
+after_success: source build_tools/travis/after_success.sh
+
