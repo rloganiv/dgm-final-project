@@ -43,19 +43,18 @@ class MidiHeader:
 
     @classmethod
     def from_bytes(cls, chunk):
+        import pdb; pdb.set_trace()
         format_type = int.from_bytes(chunk[0:2], byteorder='big')
         ntracks = int.from_bytes(chunk[2:4], byteorder='big')
         tickdiv = int.from_bytes(chunk[4:6], byteorder='big')
-        timing_interval = (tickdiv >> 16) & 1
+
 
         # TODO: Handle timecode timining intervals
+        timing_interval = (tickdiv >> 15) & 1
         if timing_interval == 1:
             raise NotImplementedError('Timecode timing intervals not supported.')
-
-        pulses_per_quarter_note = 0
-        for i in range(15):
-            pulses_per_quarter_note += tickdiv >> i
-        pulses_per_quarter_note = pulses_per_quarter_note
+            # remainder = tickdiv & 0x7fff  # Mask first bit
+        pulses_per_quarter_note = tickdiv
 
         return cls(format_type, ntracks, pulses_per_quarter_note)
 
