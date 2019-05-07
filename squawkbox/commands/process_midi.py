@@ -38,16 +38,14 @@ class MidiHeader:
 
     def __repr__(self):
         return (f'MidiHeader(format_type={self.format_type}, '
-                        f'ntracks={self.ntracks}, '
-                        f'ppqn={self.pulses_per_quarter_note})')
+                           f'ntracks={self.ntracks}, '
+                           f'ppqn={self.pulses_per_quarter_note})')
 
     @classmethod
     def from_bytes(cls, chunk):
-        import pdb; pdb.set_trace()
         format_type = int.from_bytes(chunk[0:2], byteorder='big')
         ntracks = int.from_bytes(chunk[2:4], byteorder='big')
         tickdiv = int.from_bytes(chunk[4:6], byteorder='big')
-
 
         # TODO: Handle timecode timining intervals
         timing_interval = (tickdiv >> 15) & 1
@@ -68,13 +66,10 @@ class MidiTrack:
         if header is None:
             raise MidiError('Cannot parse a MIDI track info without a header.')
         if header.format_type != 1:
-            raise NotImplementedError('Format 0 and 2 files not supported.')
+            raise NotImplementedError('Reading tracks from format type 0 and 2 files not supported.')
         import pdb; pdb.set_trace()
         for byte in chunk:
             pass
-
-
-
 
 
 def generate_chunks(file: IO[bytes]):
