@@ -99,10 +99,11 @@ class MidiTrack:
         if header is None:
             raise MidiError('Cannot parse a MIDI track info without a header.')
         byte_queue = deque(chunk)
+        event = None
         events = []
         while len(byte_queue) > 0:
             delta_time = _parse_variable_length_quantity(byte_queue)
-            event = _parse_event(byte_queue)
+            event = _parse_event(byte_queue, event)
             logger.debug(f'Delta={delta_time}, Event={event}')
             events.append((delta_time, event))
         return cls(events)
@@ -122,7 +123,7 @@ def _parse_variable_length_quantity(byte_queue: Deque[int]) -> int:
     return quantity
 
 
-def _parse_event(byte_queue: Deque[int]) -> 'Event':
+def _parse_event(byte_queue: Deque[int], prev_event: 'Event') -> 'Event':
     event_type = byte_queue.popleft()
     if event_type in SysexEvent.EVENT_TYPES:
         return SysexEvent.from_byte_queue(byte_queue, event_type)
@@ -130,6 +131,12 @@ def _parse_event(byte_queue: Deque[int]) -> 'Event':
         return MetaEvent.from_byte_queue(byte_queue, event_type)
     elif (event_type >> 4) in MidiEvent.EVENT_TYPES:
         return MidiEvent.from_byte_queue(byte_queue, event_type)
+    # Running status is a little wonky
+    elif (event_type < 0x80) and isinstance(prev_event, MidiEvent):
+        # Need to place byte back in queue since it is part of the data not the event.
+        byte_queue.appendleft(event_type)
+        # TODO: Recover previous byte code.
+        return MidiEvent.from_byte_queue()
     else:
         raise MidiError(f'Encountered unknown event type "{event_type:02x}".')
 
