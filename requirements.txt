@@ -1,5 +1,6 @@
 # Model requirements
 torch==1.0.1.post2
+pytorch-pretrained-bert>=0.6.0
 
 # Testing stuff
 pytest
