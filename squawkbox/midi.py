@@ -59,7 +59,7 @@ class MidiFile:
                 header = MidiHeader.from_bytes(chunk)
                 logger.debug(f'Parsed Header: {header}')
             elif identifier == TRACK_IDENTIFIER:
-                midi_track = MidiTrack.from_bytes(chunk, header=header)
+                midi_track = MidiTrack.from_bytes(chunk)
                 tracks.append(midi_track)
             else:
                 MidiError(f'Encountered unknown identifier "{identifier}".')
@@ -119,10 +119,7 @@ class MidiTrack:
 
     @classmethod
     def from_bytes(cls,
-                   chunk: bytes,
-                   header: MidiHeader = None) -> 'MidiTrack':
-        if header is None:
-            raise MidiError('Cannot parse a MIDI track info without a header.')
+                   chunk: bytes) -> 'MidiTrack':
         byte_queue = deque(chunk)
         event = None
         events = []
@@ -211,6 +208,7 @@ class MetaEvent(Event):
     def __init__(self, prefix: int, event_type: str, metadata: Dict[str, Any]) -> None:
         self.prefix = prefix
         self.event_type = event_type
+        self.metadata = metadata
 
     @classmethod
     @overrides
@@ -292,8 +290,8 @@ class MidiEvent(Event):
             metadata['key'] = byte_queue.popleft()
             metadata['velocity'] = byte_queue.popleft()
         elif event_type in ['Program', 'ChannelKeyPressure']:
-            metadata['raw_data'] = _pop_bytes(byte_queue, 1).hex()
+            metadata['raw_data'] = _pop_bytes(byte_queue, 1)
         else:
-            metadata['raw_data'] = _pop_bytes(byte_queue, 2).hex()
+            metadata['raw_data'] = _pop_bytes(byte_queue, 2)
 
         return cls(prefix, event_type, channel, metadata)

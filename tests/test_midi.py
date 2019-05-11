@@ -1,28 +1,28 @@
 from collections import deque
 import unittest
 
-from squawkbox.midi import _parse_variable_length_quantity, MidiError, MidiHeader, MidiTrack
+import squawkbox.midi as midi
 
 
 def test_parse_variable_length_quantity():
     # Single byte
-    byte_string = 0x7F.to_bytes(1, 'big')
+    byte_string = b'\x7F'
     expected = 127
     byte_queue = deque(byte_string)
-    observed = _parse_variable_length_quantity(byte_queue)
+    observed = midi._parse_variable_length_quantity(byte_queue)
     assert expected == observed
 
     # Multiple bytes
-    byte_string = 0x8100.to_bytes(2, 'big')
+    byte_string = b'\x81\x00'
     expected = 128
     byte_queue = deque(byte_string)
-    observed = _parse_variable_length_quantity(byte_queue)
+    observed = midi._parse_variable_length_quantity(byte_queue)
     assert expected == observed
 
-    byte_string = 0xBD8440.to_bytes(3, 'big')
+    byte_string = b'\xBD\x84\x40'
     expected = 1000000
     byte_queue = deque(byte_string)
-    observed = _parse_variable_length_quantity(byte_queue)
+    observed = midi._parse_variable_length_quantity(byte_queue)
     assert expected == observed
 
 
@@ -36,13 +36,65 @@ class TestMidiHeader(unittest.TestCase):
     def test_from_bytes(self):
         # Check that a well-formed header chunk is properly read.
         good_combination = self.format_type + self.ntracks + self.tickdiv_type_0
-        header = MidiHeader.from_bytes(good_combination)
-        self.assertEqual(header.format_type, 1)
-        self.assertEqual(header.ntracks, 2)
-        self.assertEqual(header.pulses_per_quarter_note, 255)
+        midi_header = midi.MidiHeader.from_bytes(good_combination)
+        self.assertEqual(midi_header.format_type, 1)
+        self.assertEqual(midi_header.ntracks, 2)
+        self.assertEqual(midi_header.pulses_per_quarter_note, 255)
 
     def test_unsupported(self):
         # Check that errors are raised on unsupported headers.
         bad_tickdiv_type = self.format_type + self.ntracks + self.tickdiv_type_1
         with self.assertRaises(NotImplementedError):
-            header = MidiHeader.from_bytes(bad_tickdiv_type)
+            midi_header = midi.MidiHeader.from_bytes(bad_tickdiv_type)
+
+
+class TestMidiTrack(unittest.TestCase):
+    def test_from_bytes(self):
+        # Check error raised on invalid prefix
+        invalid_prefix = b'\x00\x00'
+        with self.assertRaises(midi.MidiError):
+            midi_track = midi.MidiTrack.from_bytes(invalid_prefix)
+
+        # Check can read a SysexEvent
+        sysex_event = b'\x00\xF0\x01\x00'
+        midi_track = midi.MidiTrack.from_bytes(sysex_event)
+        self.assertEqual(len(midi_track.events), 1)
+
+        delta_time, event = midi_track.events[0]
+        self.assertEqual(delta_time, 0)
+        self.assertIsInstance(event, midi.SysexEvent)
+        self.assertEqual(event.metadata['raw_data'], b'')
+
+        # Check can read a MetaEvent
+        meta_event = b'\x00\xFF\x51\x03\x00\x00\x00'
+        midi_track = midi.MidiTrack.from_bytes(meta_event)
+        self.assertEqual(len(midi_track.events), 1)
+
+        _, event = midi_track.events[0]
+        self.assertIsInstance(event, midi.MetaEvent)
+        self.assertEqual(event.event_type, 'SetTempo')
+        self.assertEqual(event.metadata['tempo'], 0)
+
+        # Check can read two MIDI events (so we can evaluate running status)
+        midi_events = b'\x00\x90\x0F\x0F\x00\x00\x00'
+        midi_track = midi.MidiTrack.from_bytes(midi_events)
+        self.assertEqual(len(midi_track.events), 2)
+
+        _, event = midi_track.events[0]
+        self.assertIsInstance(event, midi.MidiEvent)
+        self.assertEqual(event.event_type, 'NoteOn')
+        self.assertEqual(event.metadata['key'], 15)
+        self.assertEqual(event.metadata['velocity'], 15)
+
+        _, event = midi_track.events[1]
+        self.assertIsInstance(event, midi.MidiEvent)
+        self.assertEqual(event.event_type, 'NoteOn')
+        self.assertEqual(event.metadata['key'], 0)
+        self.assertEqual(event.metadata['velocity'], 0)
+
+
+class TestMidiFile(unittest.TestCase):
+    def test_loads(self):
+        # Check that no errors occur when loading a MIDI file.
+        with open('tests/fixtures/example.midi', 'rb') as f:
+            midi.MidiFile.load(f)
