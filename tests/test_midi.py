@@ -1,6 +1,29 @@
+from collections import deque
 import unittest
 
-from squawkbox.commands.process_midi import MidiError, MidiObject, MidiHeader, MidiTrack
+from squawkbox.midi import _parse_variable_length_quantity, MidiError, MidiHeader, MidiTrack
+
+
+def test_parse_variable_length_quantity():
+    # Single byte
+    byte_string = 0x7F.to_bytes(1, 'big')
+    expected = 127
+    byte_queue = deque(byte_string)
+    observed = _parse_variable_length_quantity(byte_queue)
+    assert expected == observed
+
+    # Multiple bytes
+    byte_string = 0x8100.to_bytes(2, 'big')
+    expected = 128
+    byte_queue = deque(byte_string)
+    observed = _parse_variable_length_quantity(byte_queue)
+    assert expected == observed
+
+    byte_string = 0xBD8440.to_bytes(3, 'big')
+    expected = 1000000
+    byte_queue = deque(byte_string)
+    observed = _parse_variable_length_quantity(byte_queue)
+    assert expected == observed
 
 
 class TestMidiHeader(unittest.TestCase):
