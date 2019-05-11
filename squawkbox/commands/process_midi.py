@@ -95,7 +95,6 @@ class MidiTrack:
     def from_bytes(cls,
                    chunk: bytes,
                    header: MidiHeader = None) -> 'MidiTrack':
-        import pdb; pdb.set_trace()
         if header is None:
             raise MidiError('Cannot parse a MIDI track info without a header.')
         byte_queue = deque(chunk)
@@ -104,7 +103,7 @@ class MidiTrack:
         while len(byte_queue) > 0:
             delta_time = _parse_variable_length_quantity(byte_queue)
             event = _parse_event(byte_queue, event)
-            logger.debug(f'Delta={delta_time}, Event={event}')
+            logger.debug(f'Delta = {delta_time}, Event = {event}')
             events.append((delta_time, event))
         return cls(events)
 
@@ -295,9 +294,9 @@ class MidiEvent(Event):
             midi_event.velocity = byte_queue.popleft()
         # Otherwise just store it in a byte string.
         elif event_type in ['Program', 'ChannelKeyPressure']:
-            midi_event.data = _pop_bytes(byte_queue, 1)
+            midi_event.data = _pop_bytes(byte_queue, 1).hex()
         else:
-            midi_event.data = _pop_bytes(byte_queue, 2)
+            midi_event.data = _pop_bytes(byte_queue, 2).hex()
 
         return midi_event
 
