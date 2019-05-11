@@ -104,11 +104,7 @@ class MidiTrack:
         while len(byte_queue) > 0:
             delta_time = _parse_variable_length_quantity(byte_queue)
             event = _parse_event(byte_queue, event)
-<<<<<<< HEAD
             logger.debug(f'Delta = {delta_time}, Event = {event}')
-=======
-            logger.debug(f'Delta={delta_time}, Event={event}')
->>>>>>> origin/midi
             events.append((delta_time, event))
         return cls(events)
 
@@ -127,7 +123,6 @@ def _parse_variable_length_quantity(byte_queue: Deque[int]) -> int:
     return quantity
 
 
-<<<<<<< HEAD
 def _parse_event(byte_queue: Deque[int], prev_event: 'Event' = None) -> 'Event':
     prefix = byte_queue.popleft()
     if prefix in SysexEvent.PREFIXES:
@@ -139,22 +134,6 @@ def _parse_event(byte_queue: Deque[int], prev_event: 'Event' = None) -> 'Event':
     elif (prefix < 0x80) and isinstance(prev_event, MidiEvent):
         byte_queue.appendleft(prefix)
         return MidiEvent.from_byte_queue(byte_queue, prev_event.prefix)
-=======
-def _parse_event(byte_queue: Deque[int], prev_event: 'Event') -> 'Event':
-    event_type = byte_queue.popleft()
-    if event_type in SysexEvent.EVENT_TYPES:
-        return SysexEvent.from_byte_queue(byte_queue, event_type)
-    elif event_type in MetaEvent.EVENT_TYPES:
-        return MetaEvent.from_byte_queue(byte_queue, event_type)
-    elif (event_type >> 4) in MidiEvent.EVENT_TYPES:
-        return MidiEvent.from_byte_queue(byte_queue, event_type)
-    # Running status is a little wonky
-    elif (event_type < 0x80) and isinstance(prev_event, MidiEvent):
-        # Need to place byte back in queue since it is part of the data not the event.
-        byte_queue.appendleft(event_type)
-        # TODO: Recover previous byte code.
-        return MidiEvent.from_byte_queue()
->>>>>>> origin/midi
     else:
         raise MidiError(f'Encountered unknown event prefix "{prefix:02x}".')
 
