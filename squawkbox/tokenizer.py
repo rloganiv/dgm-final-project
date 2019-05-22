@@ -1,4 +1,8 @@
+import logging
+
 from squawkbox.midi import Midi
+
+logger = logging.getLogger(__name__)
 
 
 # TODO: Add configuration options.
@@ -32,4 +36,5 @@ class Tokenizer:
         return ' '.join(tokens)
 
     def detokenize(self, tokens: str) -> str:
-        return b''
+        tokens = tokens.split()
+
