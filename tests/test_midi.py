@@ -97,4 +97,4 @@ class TestMidiFile(unittest.TestCase):
     def test_loads(self):
         # Check that no errors occur when loading a MIDI file.
         with open('tests/fixtures/example.midi', 'rb') as f:
-            midi.MidiFile.load(f)
+            midi.Midi.load(f)
