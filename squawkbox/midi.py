@@ -3,7 +3,7 @@ MIDI objects
 """
 from collections import deque
 import logging
-from typing import Any, Deque, Dict, IO, List, Tuple
+from typing import Any, Deque, Dict, List, Tuple
 
 from overrides import overrides
 
@@ -36,7 +36,7 @@ def _pop_bytes(byte_queue: Deque[int], n: int) -> bytes:
 class MidiError(Exception): pass
 
 
-class MidiFile:
+class Midi:
     """
     An object for storing parsed MIDI information.
     """
@@ -47,7 +47,7 @@ class MidiFile:
         self.tracks = tracks
 
     @classmethod
-    def load(cls, f) -> 'MidiFile':
+    def load(cls, f) -> 'Midi':
         tracks: List['MidiTrack'] = []
         while True:
             identifier = f.read(4)
@@ -57,12 +57,12 @@ class MidiFile:
             chunk = f.read(chunklen)
             if identifier == HEADER_IDENTIFIER:
                 header = MidiHeader.from_bytes(chunk)
-                logger.debug(f'Parsed Header: {header}')
+                logger.debug('Parsed Header: %s', header)
             elif identifier == TRACK_IDENTIFIER:
                 midi_track = MidiTrack.from_bytes(chunk)
                 tracks.append(midi_track)
             else:
-                MidiError(f'Encountered unknown identifier "{identifier}".')
+                MidiError('Encountered unknown identifier "%s".', identifier)
         return cls(header, tracks)
 
 
@@ -90,9 +90,10 @@ class MidiHeader:
         self.pulses_per_quarter_note = pulses_per_quarter_note
 
     def __repr__(self) -> str:
-        return (f'MidiHeader(format_type={self.format_type}, '
-                           f'ntracks={self.ntracks}, '
-                           f'ppqn={self.pulses_per_quarter_note})')
+        return (f'MidiHeader('
+                f'format_type={self.format_type}, '
+                f'ntracks={self.ntracks}, '
+                f'ppqn={self.pulses_per_quarter_note})')
 
     @classmethod
     def from_bytes(cls, chunk: bytes) -> 'MidiHeader':
@@ -124,10 +125,10 @@ class MidiTrack:
         event = None
         events = []
         event = None
-        while len(byte_queue) > 0:
+        while byte_queue:
             delta_time = _parse_variable_length_quantity(byte_queue)
             event = MidiTrack._parse_event(byte_queue, event)
-            logger.debug(f'Delta = {delta_time}, Event = {event}')
+            logger.debug(f'Delta = %s, Event = %s', delta_time, event)
             events.append((delta_time, event))
         return cls(events)
 
@@ -138,9 +139,9 @@ class MidiTrack:
             return SysexEvent.from_byte_queue(byte_queue, prefix)
         elif prefix in MetaEvent.PREFIXES:
             return MetaEvent.from_byte_queue(byte_queue, prefix)
-        elif (prefix >> 4) in MidiEvent.PREFIXES:
+        elif prefix >> 4 in MidiEvent.PREFIXES:
             return MidiEvent.from_byte_queue(byte_queue, prefix)
-        elif (prefix < 0x80) and isinstance(prev_event, MidiEvent):
+        elif prefix < 0x80 and isinstance(prev_event, MidiEvent):
             byte_queue.appendleft(prefix)
             return MidiEvent.from_byte_queue(byte_queue, prev_event.prefix)
         else:
@@ -173,7 +174,9 @@ class SysexEvent(Event):
     @overrides
     def from_byte_queue(cls, byte_queue: Deque[int], prefix: int) -> 'SysexEvent':
         length = _parse_variable_length_quantity(byte_queue)
-        metadata: Dict[str, Any] = {'raw_data': b''.join(bytes(byte_queue.popleft()) for _ in range(length))}
+        metadata: Dict[str, Any] = {
+            'raw_data': b''.join(bytes(byte_queue.popleft()) for _ in range(length))
+        }
         return cls(prefix, metadata)
 
 
@@ -260,7 +263,7 @@ class MidiEvent(Event):
 
     NOTE: In addition to the parameters above, assorted message parameters may also be assigned.
     """
-    PREFIXES = {0x8,0x9, 0xA, 0xB, 0xC, 0xD, 0xE}
+    PREFIXES = {0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE}
     EVENT_TYPES = {
         0x8: 'NoteOff',
         0x9: 'NoteOn',

@@ -8,20 +8,27 @@ from typing import Deque, IO, List, Tuple
 
 from overrides import overrides
 
-from squawkbox.midi import MidiFile
+from squawkbox.midi import Midi
+from squawkbox.tokenizer import Tokenizer
 
 
 logger = logging.getLogger(__name__)
 
 
 def _tokenize(args):
+    tokenizer = Tokenizer()
     with open(args.input, 'rb') as f:
-        midi_file = MidiFile.load(f)
-    raise NotImplementedError
+        midi = Midi.load(f)
+    with open(args.output, 'w') as g:
+        g.write(tokenizer.tokenize(midi))
 
 
 def _detokenize(args):
-    raise NotImplementedError
+    tokenizer = Tokenizer()
+    with open(args.input, 'r') as f:
+        tokens = f.read()
+    with open(args.output, 'wb') as g:
+        g.write(tokenizer.detokenize(tokens))
 
 
 if __name__ == '__main__':
