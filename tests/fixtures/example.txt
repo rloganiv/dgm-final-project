@@ -1,0 +1,1 @@
+start wait:1 note:0:0 end
