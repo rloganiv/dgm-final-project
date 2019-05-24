@@ -19,3 +19,8 @@ class Registrable:
         if name not in Registrable._registry[cls]:
             raise ValueError('"%s" not registered' % name)
         return Registrable._registry[cls].get(name)
+
+    @classmethod
+    def from_config(cls, config, **kwargs):
+        constructor = cls.get(config.pop('name'))
+        return constructor(**config, **kwargs)
