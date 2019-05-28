@@ -3,6 +3,7 @@ MIDI objects
 """
 from collections import deque
 import logging
+from math import ceil, log
 from typing import Any, Deque, Dict, List, Tuple
 
 from overrides import overrides
@@ -27,6 +28,25 @@ def _parse_variable_length_quantity(byte_queue: Deque[int]) -> int:
         if not (byte >> 7) & 1:
             break
     return quantity
+
+
+def _as_variable_length_quantity(x: int) -> bytes:
+    """
+    Converts an int into a variable length quantity
+    """
+    bits = bin(x)[2:]
+    front_padding = (7 - len(bits)) % 7
+    bits = '0' * front_padding + bits
+    n =  len(bits) // 7
+    out = b''
+    for i in range(n):
+        if i == n-1:
+            prefix = '0'
+        else:
+            prefix = '1'
+        chunk = prefix + bits[i*7:(i+1)*7]
+        out += int(chunk, 2).to_bytes(1, 'big')
+    return out
 
 
 def _pop_bytes(byte_queue: Deque[int], n: int) -> bytes:
