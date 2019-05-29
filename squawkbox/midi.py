@@ -3,6 +3,7 @@ MIDI objects
 """
 from collections import deque
 import logging
+from math import ceil, log
 from typing import Any, Deque, Dict, List, Tuple
 
 from overrides import overrides
@@ -29,6 +30,25 @@ def _parse_variable_length_quantity(byte_queue: Deque[int]) -> int:
     return quantity
 
 
+def _as_variable_length_quantity(x: int) -> bytes:
+    """
+    Converts an int into a variable length quantity
+    """
+    bits = bin(x)[2:]
+    front_padding = (7 - len(bits)) % 7
+    bits = '0' * front_padding + bits
+    n =  len(bits) // 7
+    out = b''
+    for i in range(n):
+        if i == n-1:
+            prefix = '0'
+        else:
+            prefix = '1'
+        chunk = prefix + bits[i*7:(i+1)*7]
+        out += int(chunk, 2).to_bytes(1, 'big')
+    return out
+
+
 def _pop_bytes(byte_queue: Deque[int], n: int) -> bytes:
     return bytes(byte_queue.popleft() for _ in range(n))
 
@@ -53,7 +73,8 @@ class Midi:
             identifier = f.read(4)
             if identifier == b'':
                 break
-            chunklen = int.from_bytes(f.read(4), byteorder='big')
+            chunklen_bytes = f.read(4)
+            chunklen = int.from_bytes(chunklen_bytes, byteorder='big')
             chunk = f.read(chunklen)
             if identifier == HEADER_IDENTIFIER:
                 header = MidiHeader.from_bytes(chunk)
@@ -64,6 +85,14 @@ class Midi:
             else:
                 MidiError('Encountered unknown identifier "%s".', identifier)
         return cls(header, tracks)
+
+    def dump(self, f) -> None:
+        # Write header chunk
+        f.write(self.header.to_bytes())
+
+        # Write track chunks
+        for track in self.tracks:
+            f.write(track.to_bytes())
 
 
 class MidiHeader:
@@ -110,6 +139,13 @@ class MidiHeader:
 
         return cls(format_type, ntracks, pulses_per_quarter_note)
 
+    def to_bytes(self) -> bytes:
+        length = 1
+        length_bytes = length.to_bytes(4, 'big')
+        data = (self.format_type << 6) + (self.ntracks << 4) + self.pulses_per_quarter_note
+        data_bytes = data.to_bytes(1, 'big')
+        return HEADER_IDENTIFIER + length_bytes + data_bytes
+
 
 class MidiTrack:
     """
@@ -147,6 +183,15 @@ class MidiTrack:
         else:
             raise MidiError(f'Encountered unknown event prefix "{prefix:02x}".')
 
+    def to_bytes(self) -> bytes:
+        data_bytes = b''
+        for delta_time, event in self.events:
+            data_bytes += _as_variable_length_quantity(delta_time)
+            data_bytes += event.to_bytes()
+        length = len(data_bytes)
+        length_bytes = length.to_bytes(4, 'big')
+        return TRACK_IDENTIFIER + length_bytes + data_bytes
+
 
 class Event:
     def __repr__(self):
@@ -178,6 +223,10 @@ class SysexEvent(Event):
             'raw_data': b''.join(bytes(byte_queue.popleft()) for _ in range(length))
         }
         return cls(prefix, metadata)
+
+    def to_bytes(self):
+        logger.warning('SysexEvent.to_bytes() is not implemented. Empty string used instead.')
+        return b''
 
 
 class MetaEvent(Event):
@@ -249,6 +298,10 @@ class MetaEvent(Event):
 
         return cls(prefix, event_type, metadata)
 
+    def to_bytes(self):
+        logger.warning('MetaEvent.to_bytes() is not implemented. Empty string used instead.')
+        return b''
+
 
 class MidiEvent(Event):
     """
@@ -298,3 +351,13 @@ class MidiEvent(Event):
             metadata['raw_data'] = _pop_bytes(byte_queue, 2)
 
         return cls(prefix, event_type, channel, metadata)
+
+    def to_bytes(self) -> bytes:
+        if self.event_type != 'NoteOn':
+            logger.warning('MidiEvent.to_bytes() is not implemented for non-NoteOn events. '
+                           'Empty string used instead.')
+            return b''
+        prefix = self.prefix.to_bytes(1, 'big')
+        key = self.metadata['key'].to_bytes(1, 'big')
+        velocity = self.metadata['velocity'].to_bytes(1, 'big')
+        return prefix + key + velocity
