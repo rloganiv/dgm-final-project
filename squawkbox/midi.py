@@ -84,7 +84,6 @@ class Midi:
                 tracks.append(midi_track)
             else:
                 MidiError('Encountered unknown identifier "%s".', identifier)
-            logger.debug(identifier + chunklen_bytes + chunk)
         return cls(header, tracks)
 
     def dump(self, f) -> None:
