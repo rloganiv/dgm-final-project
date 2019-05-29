@@ -26,6 +26,23 @@ def test_parse_variable_length_quantity():
     assert expected == observed
 
 
+def test_as_variable_length_quantity():
+    value = 127
+    expected = b'\x7f'
+    observed = midi._as_variable_length_quantity(value)
+    assert expected == observed
+
+    value = 128
+    expected = b'\x81\x00'
+    observed = midi._as_variable_length_quantity(value)
+    assert expected == observed
+
+    value = 1000000
+    expected = b'\xBD\x84\x40'
+    observed = midi._as_variable_length_quantity(value)
+    assert expected == observed
+
+
 class TestMidiHeader(unittest.TestCase):
     def setUp(self):
         self.format_type = b'\x00\x01'
