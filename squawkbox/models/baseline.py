@@ -22,7 +22,7 @@ class Baseline(nn.Module):
 
         self.h2o = nn.Linear(num_lstm_units, vocab_size)
 
-    def forward(self, src, tgt=None, hidden=None):
+    def forward(self, src, tgt=None, hidden=None, **kwargs):
         """
         return logits and loss
         :param src: (batch_size, seq_len)
@@ -57,8 +57,9 @@ class Baseline(nn.Module):
         output = {'logits': logits}
 
         if tgt is not None:
-            ll = (F.log_softmax(logits, dim=-1).gather(2,tgt.unsqueeze(-1)) * masks.unsqueeze(-1)).mean(dim=1).mean(dim=0)
-            output['loss'] = ll
+            ll = F.log_softmax(logits, dim=-1).gather(2,tgt.unsqueeze(-1))
+            ll = ll * masks.unsqueeze(-1)
+            output['loss'] = ll.mean(dim=1).mean(dim=0)
 
         return output
 

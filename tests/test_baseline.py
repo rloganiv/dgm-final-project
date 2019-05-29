@@ -10,3 +10,4 @@ def test_baseline():
     out_dict['loss'].backward()
     for p in baseline.parameters():
         assert p.grad is not None
+    assert out_dict['logits'][0, 2:4].abs().sum() == 0.0
