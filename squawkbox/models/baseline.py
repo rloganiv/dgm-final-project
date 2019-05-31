@@ -2,6 +2,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+from squawkbox.models import Model
+
+
+@Model.register('baseline')
 class Baseline(nn.Module):
     def __init__(self, vocab_size, embedding_dim, num_lstm_units, num_lstm_layers, padding=0):
         super().__init__()
