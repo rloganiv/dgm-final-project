@@ -60,6 +60,7 @@ def _process_maestro(args):
 
 
 def _detokenize(args):
+    logger.warning('Detokenizer currently only supports writing NoteOn events.')
     tokenizer = Tokenizer()
     with open(args.input, 'r') as token_file:
         tokens = token_file.read()

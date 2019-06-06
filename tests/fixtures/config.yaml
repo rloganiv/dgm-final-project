@@ -1,0 +1,10 @@
+model:
+  name: "null"
+optimizer:
+  name: "sgd"
+  lr: 1.0
+training:
+  epochs: 1
+  batch_size: 1
+train_data: "tests/fixtures/example.txt"
+validation_data: "tests/fixtures/example.txt"
