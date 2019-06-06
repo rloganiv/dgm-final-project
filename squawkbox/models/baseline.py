@@ -63,7 +63,7 @@ class Baseline(nn.Module):
         if tgt is not None:
             ll = F.log_softmax(logits, dim=-1).gather(2,tgt.unsqueeze(-1))
             ll = ll * masks.unsqueeze(-1)
-            output['loss'] = ll.mean(dim=1).mean(dim=0)
+            output['loss'] = -ll.mean(dim=1).mean(dim=0)
 
         return output
 
