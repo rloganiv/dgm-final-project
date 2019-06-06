@@ -5,8 +5,8 @@ from torch.utils.data import Dataset
 
 from .wait_times import WAIT_TIMES
 
-# Total Tokens: 15317
-SPECIAL_TOKENS = ['pad', 'start', 'end']
+# Total Tokens: 15320
+SPECIAL_TOKENS = ['pad', 'start', 'end', 'tempo:120', 'ticklen:1302', 'ticklen:1041']
 NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(21, 109) for j in range(127)] # ranges respect values seen in data
 WAIT_EVENTS = ["wait:%i" % i for i in WAIT_TIMES]
 IDX_TO_TOKEN = [*SPECIAL_TOKENS, *NOTE_EVENTS, *WAIT_EVENTS]
