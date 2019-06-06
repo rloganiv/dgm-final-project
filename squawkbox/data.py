@@ -3,10 +3,24 @@ from collections import defaultdict
 import torch
 from torch.utils.data import Dataset
 
+import pickle
 
 SPECIAL_TOKENS = ['pad', 'start', 'end']
-NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(128) for j in range(128)]
-WAIT_EVENTS = ['wait:%i' % i for i in range(4096)]  # Note: might need more waits
+NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(21, 109) for j in range(127)] # ranges respect values seen in data
+
+possible_paths = ["./", "./squawkbox/", "./dgm-final-project/squawkbox/", None]
+
+for path in possible_paths:
+    try:
+        with open(path + "possible_waits", 'rb') as f:
+            WAIT_EVENTS = pickle.load(f)
+        break
+    except:
+        pass
+
+if path is None:
+    raise Exception("must run script within dgm-final-project/ or dgm-final-project/squawkbox") 
+    
 IDX_TO_TOKEN = [*SPECIAL_TOKENS, *NOTE_EVENTS, *WAIT_EVENTS]
 TOKEN_TO_IDX = {token: i for i, token in enumerate(IDX_TO_TOKEN)}
 
