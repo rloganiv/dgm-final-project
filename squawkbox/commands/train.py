@@ -85,11 +85,19 @@ def _train(args):
         for instance in train_tqdm:
             if args.cuda:
                 instance = {key: value.cuda() for key, value in instance.items()}
-            optimizer.zero_grad()
-            output_dict = model(**instance)
-            loss = output_dict['loss']
-            loss.backward()
-            optimizer.step()
+
+            instance_chunks = {key: torch.split(value, train_config['chunk_size'], dim=1)
+                              for key, value in instance.items()}
+
+            output_dict = {"hidden": None}
+            for chunk_id in range(len(instance_chunks['src'])):
+                instance_chunk = {key: value[chunk_id] for key, value in instance_chunks.items()}
+                optimizer.zero_grad()
+                output_dict = model(hidden = output_dict["hidden"], **instance_chunk)
+                loss = output_dict['loss']
+                loss.backward()
+                optimizer.step()
+                output_dict['hidden'].detach()
             train_tqdm.set_description('Loss: %0.4f' % loss.item())
 
         # Validation loop
