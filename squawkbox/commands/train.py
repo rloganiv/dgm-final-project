@@ -128,11 +128,30 @@ def _train(args):
         for instance in validation_tqdm:
             if args.cuda:
                 instance = {key: value.cuda() for key, value in instance.items()}
-            output_dict = model(**instance)
-            loss = output_dict['loss']
-            total_validation_loss += loss.item()
-            number_of_instances += train_config['batch_size']
-            validation_tqdm.set_description('Loss: %0.4f' % (total_validation_loss / number_of_instances))
+            
+            instance_chunks = {key: torch.split(value, train_config['chunk_size'], dim=1) for key, value in instance.items()}
+            output_dict = {"hidden": None}
+            keep_id_list = [instance_chunk["src"][:, 0] != 0]
+            for chunk_id in range(len(instance_chunks['src'])):
+                instance_chunk = {key: value[chunk_id] for key, value in instance_chunks.items()}
+                
+                for keep_id in keep_id_list:
+                    instance_chunk = {key: value[keep_id, :] for key, value in instance_chunk.items()}
+                
+                # need to filter empty sequences out
+                new_keep_ids = instance_chunk["src"][:, 0] != 0
+                keep_id_list.append(new_keep_ids)
+
+                instance_chunk = {key: value[new_keep_ids, :] for key, value in instance_chunk.items()}
+                
+                if output_dict["hidden"] is not None:
+                    output_dict["hidden"] = [h_vec[:, new_keep_ids, :].detach() for h_vec in output_dict["hidden"]]
+
+                output_dict = model(hidden = output_dict["hidden"], **instance_chunk)
+                loss = output_dict['loss']
+                total_validation_loss += loss.item()
+                number_of_instances += new_keep_ids.squeeze().sum().item() #train_config['batch_size']
+                validation_tqdm.set_description('Loss: %0.4f' % (total_validation_loss / number_of_instances))
         metric = total_validation_loss / number_of_instances
         logger.info('Validation Loss: %0.4f', metric)
 
