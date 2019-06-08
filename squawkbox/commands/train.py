@@ -25,7 +25,7 @@ def _train(args):
     """Training function"""
     # Front matter
     if args.output_dir.exists() and not args.resume:
-        logger.error('Directory "%s" already exists. Exiting.')
+        logger.error('Directory "%s" already exists. Exiting.' % str(args.output_dir))
         sys.exit(1)
     else:
         logger.info('Creating directory "%s"', args.output_dir)
@@ -90,14 +90,28 @@ def _train(args):
                               for key, value in instance.items()}
 
             output_dict = {"hidden": None}
+            keep_id_list = [] #[instance_chunk["src"][:, 0] != 0]
             for chunk_id in range(len(instance_chunks['src'])):
                 instance_chunk = {key: value[chunk_id] for key, value in instance_chunks.items()}
+                
+                for keep_id in keep_id_list:
+                    instance_chunk = {key: value[keep_id, :] for key, value in instance_chunk.items()}
+                
+                # need to filter empty sequences out
+                new_keep_ids = instance_chunk["src"][:, 0] != 0
+                keep_id_list.append(new_keep_ids)
+
+                instance_chunk = {key: value[new_keep_ids, :] for key, value in instance_chunk.items()}
+                
+                if output_dict["hidden"] is not None:
+                    output_dict["hidden"] = [h_vec[:, new_keep_ids, :].detach() for h_vec in output_dict["hidden"]]
+
                 optimizer.zero_grad()
                 output_dict = model(hidden = output_dict["hidden"], **instance_chunk)
                 loss = output_dict['loss']
                 loss.backward()
                 optimizer.step()
-                output_dict['hidden'].detach()
+
             train_tqdm.set_description('Loss: %0.4f' % loss.item())
 
         # Validation loop
