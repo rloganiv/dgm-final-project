@@ -9,7 +9,7 @@ class PositionalEmbedding(torch.nn.Module):
         assert (dim % 2) == 0
         self.dim = dim
         half_dim = int(dim / 2)
-        self.freq = 1 / 10000 ** ( torch.arange(0, half_dim, dtype=torch.float32).view(1, 1, half_dim) / half_dim)
+        self.register_buffer("freq",  1 / 10000 ** ( torch.arange(0, half_dim, dtype=torch.float32).view(1, 1, half_dim) / half_dim))
 
     def forward(self, timestamp):
         timestamp = timestamp.type(torch.float32).unsqueeze(-1)
