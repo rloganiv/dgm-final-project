@@ -47,7 +47,7 @@ def _train(args):
         lr_scheduler = None
 
     if args.cuda:
-        model = model.cuda()
+        model = model.cuda(args.cudadev)
 
     # Restore checkpoint
     checkpoint_path = args.output_dir / 'checkpoint.pt'
@@ -127,11 +127,11 @@ def _train(args):
         number_of_instances = 0
         for instance in validation_tqdm:
             if args.cuda:
-                instance = {key: value.cuda() for key, value in instance.items()}
+                instance = {key: value.cuda(args.cudadev) for key, value in instance.items()}
             
+            keep_id_list = [instance["src"][:, 0] != 0]
             instance_chunks = {key: torch.split(value, train_config['chunk_size'], dim=1) for key, value in instance.items()}
             output_dict = {"hidden": None}
-            keep_id_list = [instance_chunk["src"][:, 0] != 0]
             for chunk_id in range(len(instance_chunks['src'])):
                 instance_chunk = {key: value[chunk_id] for key, value in instance_chunks.items()}
                 
@@ -169,6 +169,7 @@ def _train(args):
         if metric < best_metric:
             logger.info('Best model so far.')
             state_dict['best_metric'] = metric
+            best_metric = metric
             torch.save(state_dict, best_checkpoint_path)
 
         # Save current model.
@@ -184,6 +185,7 @@ if __name__ == '__main__':
     parser.add_argument('config', type=Path, help='path to config .yaml file')
     parser.add_argument('output_dir', type=Path, help='output directory to save model to')
     parser.add_argument('--cuda', action='store_true', help='use CUDA')
+    parser.add_argumetn('--cudadev', type=int, help="CUDA device num", default = 0)
     parser.add_argument('-r', '--resume', action='store_true',
                         help='will continue training existing checkpoint')
     args, _ = parser.parse_known_args()
