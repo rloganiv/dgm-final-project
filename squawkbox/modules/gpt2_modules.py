@@ -16,6 +16,7 @@ from torch.nn import CrossEntropyLoss
 from torch.nn.parameter import Parameter
 
 from .utils import gelu, Conv1D
+from .attention import Attention
 from pytorch_pretrained_bert.file_utils import cached_path, CONFIG_NAME, WEIGHTS_NAME
 from pytorch_pretrained_bert.modeling import BertLayerNorm as LayerNorm
 
@@ -397,7 +398,7 @@ class GPT2Model(GPT2PreTrainedModel):
             presents.append(present)
         hidden_states = self.ln_f(hidden_states)
         output_shape = input_shape + (hidden_states.size(-1),)
-return hidden_states.view(*output_shape), presents
+        return hidden_states.view(*output_shape), presents
     
     
 class GPT2LMHeadModel(GPT2PreTrainedModel):

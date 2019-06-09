@@ -11,6 +11,7 @@ class Attention(nn.Module):
         # [switch nx => n_state from Block to Attention to keep identical to TF implem]
         assert n_state % config.n_head == 0
         self.register_buffer("bias", torch.tril(torch.ones(n_ctx, n_ctx)).view(1, 1, n_ctx, n_ctx))
+        self.n_ctx = n_ctx
         self.n_head = config.n_head
         self.split_size = n_state
         self.scale = scale
