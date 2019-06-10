@@ -13,9 +13,10 @@ DEFAULT_TEMPO_MAP = b'MTrk\x00\x00\x00\x13\x00\xffQ\x03\x07\xa1 \x00\xffX\x04\x0
 # TODO: Add configuration options.
 class Tokenizer:
 
-    def __init__(self, scale=1, max_tokens=None):
+    def __init__(self, scale=1, max_tokens=None, max_wait_time=None):
         self._scale = scale
         self._max_tokens = max_tokens
+        self._max_wait_time = max_wait_time
 
     def tokenize(self, midi: md.Midi) -> str:
         tokens = []
@@ -39,6 +40,8 @@ class Tokenizer:
                 metadata = event.metadata
                 if cumulative_delta_time > 0:
                     if tokens[-1] != 'start':
+                        if self._max_wait_time is not None:
+                            cumulative_delta_time = min(cumulative_delta_time, self._max_wait_time)
                         tokens.append(f'wait:{cumulative_delta_time}')
                     cumulative_delta_time = 0
                 tokens.append(f'note:{metadata["key"]}:{metadata["velocity"]}')
