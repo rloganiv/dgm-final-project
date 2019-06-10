@@ -17,7 +17,8 @@ class NullModel(Model):
         self.weight = torch.nn.Parameter(torch.tensor(0.0))
 
     def forward(*args, **kwargs):
-        return {'loss': torch.tensor(0.0, requires_grad=True)}
+        return {'loss': torch.tensor(0.0, requires_grad=True),
+                'hidden': None}
 
 
 class TestTrainCommand(TestCase):
@@ -27,6 +28,8 @@ class TestTrainCommand(TestCase):
         self.args.config = Path('tests/fixtures/config.yaml')
         self.args.output_dir = self.tmp_dir
         self.args.cuda = False
+        self.args.cuda_device = None
+        self.args.data_parallel = False
         self.args.resume = False
 
     def test_runs(self):
