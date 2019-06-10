@@ -84,6 +84,7 @@ def _train(args):
     validation_dataset = MidiDataset(config['validation_data'])
 
     train_config = config['training']
+    chunk_size = train_config.get('chunk_size', 512)
     for epoch in range(start_epoch, train_config['epochs']):
         logger.info('Epoch: %i', epoch)
 
@@ -100,7 +101,7 @@ def _train(args):
             if args.cuda:
                 instance = {key: value.cuda() for key, value in instance.items()}
 
-            instance_chunks = {key: torch.split(value, train_config['chunk_size'], dim=1)
+            instance_chunks = {key: torch.split(value, chunk_size, dim=1)
                               for key, value in instance.items()}
 
             output_dict = {"hidden": None}
@@ -144,7 +145,7 @@ def _train(args):
                 instance = {key: value.cuda(args.cudadev) for key, value in instance.items()}
 
             keep_id_list = [instance["src"][:, 0] != 0]
-            instance_chunks = {key: torch.split(value, train_config['chunk_size'], dim=1) for key, value in instance.items()}
+            instance_chunks = {key: torch.split(value, chunk_size, dim=1) for key, value in instance.items()}
             output_dict = {"hidden": None}
             for chunk_id in range(len(instance_chunks['src'])):
                 instance_chunk = {key: value[chunk_id] for key, value in instance_chunks.items()}
