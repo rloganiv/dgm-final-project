@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def _tokenize(args):
-    tokenizer = Tokenizer()
+    tokenizer = Tokenizer(scale=args.scale)
     with open(args.input, 'rb') as midi_file:
         midi = Midi.load(midi_file)
     with open(args.output, 'w') as token_file:
@@ -27,7 +27,7 @@ def _tokenize(args):
 
 
 def _process_maestro(args):
-    tokenizer = Tokenizer()
+    tokenizer = Tokenizer(scale=args.scale)
 
     if not args.csv.exists():
         raise IOError('"%s" does not exist. Terminating', args.csv)
@@ -61,7 +61,7 @@ def _process_maestro(args):
 
 def _detokenize(args):
     logger.warning('Detokenizer currently only supports writing NoteOn events.')
-    tokenizer = Tokenizer()
+    tokenizer = Tokenizer(scale=args.scale)
     with open(args.input, 'r') as token_file:
         tokens = token_file.read()
     with open(args.output, 'wb') as midi_file:
@@ -81,6 +81,7 @@ if __name__ == '__main__':
                                             help=tokenize_description)
     tokenize_parser.add_argument('input', type=str, help='path to input .midi file')
     tokenize_parser.add_argument('output', type=str, help='path to output .txt file')
+    tokenize_parser.add_argument('--scale', type=int, default=1, help='scale factor')
     tokenize_parser.set_defaults(func=_tokenize)
 
     batch_tokenize_description = 'tokenizes/splits the entire MAESTRO dataset'
@@ -93,6 +94,7 @@ if __name__ == '__main__':
     batch_tokenize_parser.add_argument('--root_dir', type=Path, default=None,
                                        help='directory containing MIDI files; '
                                             'default behavior is to use the directory ' 'containing the csv')
+    batch_tokenize_parser.add_argument('--scale', type=int, default=1, help='scale factor')
     batch_tokenize_parser.set_defaults(func=_process_maestro)
 
     detokenize_description = 'converts a sequence of tokens to a MIDI file'
@@ -101,6 +103,7 @@ if __name__ == '__main__':
                                               help=detokenize_description)
     detokenize_parser.add_argument('input', type=str, help='path to input .txt file')
     detokenize_parser.add_argument('output', type=str, help='path to output .midi file')
+    detokenize_parser.add_argument('--scale', type=int, default=1, help='scale factor')
     detokenize_parser.set_defaults(func=_detokenize)
 
     args = parser.parse_args()
