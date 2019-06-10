@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def _tokenize(args):
-    tokenizer = Tokenizer(scale=args.scale)
+    tokenizer = Tokenizer(scale=args.scale, max_tokens=args.max_tokens)
     with open(args.input, 'rb') as midi_file:
         midi = Midi.load(midi_file)
     with open(args.output, 'w') as token_file:
@@ -27,7 +27,7 @@ def _tokenize(args):
 
 
 def _process_maestro(args):
-    tokenizer = Tokenizer(scale=args.scale)
+    tokenizer = Tokenizer(scale=args.scale, max_tokens=args.max_tokens)
 
     if not args.csv.exists():
         raise IOError('"%s" does not exist. Terminating', args.csv)
@@ -82,6 +82,7 @@ if __name__ == '__main__':
     tokenize_parser.add_argument('input', type=str, help='path to input .midi file')
     tokenize_parser.add_argument('output', type=str, help='path to output .txt file')
     tokenize_parser.add_argument('--scale', type=int, default=1, help='scale factor')
+    tokenize_parser.add_argument('--max-tokens', type=int, default=None, help='max tokens')
     tokenize_parser.set_defaults(func=_tokenize)
 
     batch_tokenize_description = 'tokenizes/splits the entire MAESTRO dataset'
@@ -95,6 +96,7 @@ if __name__ == '__main__':
                                        help='directory containing MIDI files; '
                                             'default behavior is to use the directory ' 'containing the csv')
     batch_tokenize_parser.add_argument('--scale', type=int, default=1, help='scale factor')
+    batch_tokenize_parser.add_argument('--max-tokens', type=int, default=None, help='max tokens')
     batch_tokenize_parser.set_defaults(func=_process_maestro)
 
     detokenize_description = 'converts a sequence of tokens to a MIDI file'

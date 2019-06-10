@@ -13,8 +13,9 @@ DEFAULT_TEMPO_MAP = b'MTrk\x00\x00\x00\x13\x00\xffQ\x03\x07\xa1 \x00\xffX\x04\x0
 # TODO: Add configuration options.
 class Tokenizer:
 
-    def __init__(self, scale=1):
+    def __init__(self, scale=1, max_tokens=None):
         self._scale = scale
+        self._max_tokens = max_tokens
 
     def tokenize(self, midi: md.Midi) -> str:
         tokens = []
@@ -29,7 +30,10 @@ class Tokenizer:
         tokens.append('start')
 
         cumulative_delta_time = 0
-        for delta_time, event in midi.tracks[1].events:
+        for i, (delta_time, event) in enumerate(midi.tracks[1].events):
+            if self._max_tokens is not None:
+                if i >= self._max_tokens:
+                    break
             cumulative_delta_time += round(ticklen_mult * delta_time // self._scale)
             if event.event_type == 'NoteOn':
                 metadata = event.metadata
