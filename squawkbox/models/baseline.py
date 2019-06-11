@@ -50,20 +50,20 @@ class Baseline(nn.Module):
         # pack_padded_sequence
         packed = pack_padded_sequence(embeddings, lengths=seq_lens, batch_first=True)
         if hidden is None:
-            lstm_output, _ = self.lstm(packed)
+            lstm_output, hidden_out = self.lstm(packed)
         else:
-            lstm_output, _ = self.lstm(packed, hidden)
+            lstm_output, hidden_out = self.lstm(packed, hidden)
         # pad_packed_sequence
         lstm_output, _ = pad_packed_sequence(lstm_output, batch_first=True)
 
         # output = output.contiguous()
         logits = self.h2o(lstm_output) * masks.unsqueeze(-1) # batch_size, seq_len, voc_len
-        output = {'logits': logits}
+        output = {'logits': logits, 'hidden': hidden_out}
 
         if tgt is not None:
             ll = F.log_softmax(logits, dim=-1).gather(2,tgt.unsqueeze(-1))
             ll = ll * masks.unsqueeze(-1)
-            output['loss'] = ll.mean(dim=1).mean(dim=0)
+            output['loss'] = -ll.mean(dim=1).mean(dim=0)
 
         return output
 
