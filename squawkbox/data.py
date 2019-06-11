@@ -3,12 +3,10 @@ from collections import defaultdict
 import torch
 from torch.utils.data import Dataset
 
-from .wait_times import WAIT_TIMES
-
-# Total Tokens: 15320
-SPECIAL_TOKENS = ['pad', 'start', 'end', 'tempo:120', 'ticklen:1302', 'ticklen:1041']
-NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(21, 109) for j in range(127)] # ranges respect values seen in data
-WAIT_EVENTS = ["wait:%i" % i for i in WAIT_TIMES]
+# Total Tokens: 20228
+SPECIAL_TOKENS = ['pad', 'start', 'end']
+NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(127) for j in range(127)]
+WAIT_EVENTS = ['wait:%i' % i for i in range(4096)]
 IDX_TO_TOKEN = [*SPECIAL_TOKENS, *NOTE_EVENTS, *WAIT_EVENTS]
 TOKEN_TO_IDX = {token: i for i, token in enumerate(IDX_TO_TOKEN)}
 
