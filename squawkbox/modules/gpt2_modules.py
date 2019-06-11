@@ -14,6 +14,7 @@ import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss
 from torch.nn.parameter import Parameter
+from torch.utils.checkpoint import checkpoint
 
 from .utils import gelu, Conv1D
 from .attention import Attention
@@ -393,14 +394,14 @@ class GPT2Model(GPT2PreTrainedModel):
             token_type_embeds = 0
         hidden_states = inputs_embeds + position_embeds + token_type_embeds
         presents = []
-        for block, layer_past in zip(self.h, past):
-            hidden_states, present = block(hidden_states, layer_past)
+        for i, (block, layer_past) in enumerate(zip(self.h, past)):
+            hidden_states, present = checkpoint(block, hidden_states, layer_past)
             presents.append(present)
         hidden_states = self.ln_f(hidden_states)
         output_shape = input_shape + (hidden_states.size(-1),)
         return hidden_states.view(*output_shape), presents
-    
-    
+
+
 class GPT2LMHeadModel(GPT2PreTrainedModel):
     """OpenAI GPT-2 model with a Language Modeling head ("Language Models are Unsupervised Multitask Learners").
     Params:
@@ -452,7 +453,7 @@ class GPT2LMHeadModel(GPT2PreTrainedModel):
 
     def forward(self, input_ids, position_ids=None, token_type_ids=None, lm_labels=None, past=None):
         hidden_states, presents = self.transformer(input_ids, position_ids, token_type_ids, past)
-        lm_logits = self.lm_head(hidden_states)
+        lm_logits = checkpoint(self.lm_head, hidden_states)
         if lm_labels is not None:
             # Shift so that tokens < n predict n
             shift_logits = lm_logits[:, :-1].contiguous()

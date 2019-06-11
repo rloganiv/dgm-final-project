@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import sys
 
+from apex import amp
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -58,10 +59,13 @@ def _train(args):
     if args.cuda:
         if args.cuda_device is not None:
             model = model.cuda(args.cuda_device)
-        elif args.data_parallel:
+        elif args.data_parallel and not args.fp16:
             model = torch.nn.DataParallel(model)
         else:
             model = model.cuda()
+
+        if args.fp16:
+            model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
 
     # Restore checkpoint
     checkpoint_path = args.output_dir / 'checkpoint.pt'
@@ -85,6 +89,7 @@ def _train(args):
 
     train_config = config['training']
     chunk_size = train_config.get('chunk_size', 512)
+    step = 0
     for epoch in range(start_epoch, train_config['epochs']):
         logger.info('Epoch: %i', epoch)
 
@@ -97,6 +102,7 @@ def _train(args):
                                   num_workers=train_config.get('num_workers', 0),
                                   collate_fn=pad_and_combine_instances)
         train_tqdm = tqdm(train_loader, desc='Loss: NA')
+        optimizer.zero_grad()
         for instance in train_tqdm:
             if args.cuda:
                 instance = {key: value.cuda() for key, value in instance.items()}
@@ -121,11 +127,18 @@ def _train(args):
                 if output_dict["hidden"] is not None:
                     output_dict["hidden"] = [h_vec[:, new_keep_ids, :].detach() for h_vec in output_dict["hidden"]]
 
-                optimizer.zero_grad()
                 output_dict = model(hidden=output_dict["hidden"], **instance_chunk)
                 loss = output_dict['loss']
-                loss.backward()
-                optimizer.step()
+                if args.fp16:
+                    with amp.scale_loss(loss,  optimizer) as scaled_loss:
+                        scaled_loss.backward()
+                else:
+                    loss.backward()
+
+                step += 1
+                if not step % train_config.get('accumulation_steps', 1):
+                    optimizer.step()
+                    optimizer.zero_grad()
 
             train_tqdm.set_description('Loss: %0.4f' % loss.item())
 
@@ -207,6 +220,8 @@ if __name__ == '__main__':
     parser.add_argument('--cuda-device', type=int, help='CUDA device num', default=None)
     parser.add_argument('--data-parallel', action='store_true',
                         help='If enabled, trains on all GPUs')
+    parser.add_argument('--fp16', action='store_true',
+                        help='Enables half precision training')
     parser.add_argument('-r', '--resume', action='store_true',
                         help='will continue training existing checkpoint')
     args, _ = parser.parse_known_args()
