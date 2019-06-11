@@ -152,7 +152,7 @@ def _train(args):
         model.eval()
         validation_loader = DataLoader(validation_dataset,
                                        batch_size=train_config['batch_size'],
-                                       shuffle=True,
+                                       shuffle=False,
                                        num_workers=train_config.get('num_workers', 0),
                                        collate_fn=pad_and_combine_instances)
         validation_tqdm = tqdm(validation_loader, desc='Loss: NA')
@@ -160,7 +160,7 @@ def _train(args):
         number_of_instances = 0
         for instance in validation_tqdm:
             if args.cuda:
-                instance = {key: value.cuda(args.cuda-device) for key, value in instance.items()}
+                instance = {key: value.cuda(args.cuda_device) for key, value in instance.items()}
 
             keep_id_list = [instance["src"][:, 0] != 0]
             instance_chunks = {key: torch.split(value, chunk_size, dim=1) for key, value in instance.items()}
@@ -182,9 +182,10 @@ def _train(args):
 
                 output_dict = model(hidden=output_dict["hidden"], **instance_chunk)
                 loss = output_dict['loss']
-                total_validation_loss += loss.item()
-                number_of_instances += new_keep_ids.squeeze().sum().item() #train_config['batch_size']
-                validation_tqdm.set_description('Loss: %0.4f' % (total_validation_loss / number_of_instances))
+                effective_batch_size = new_keep_ids.squeeze().sum().item()
+                total_validation_loss += loss.item() * effective_batch_size
+                number_of_instances += effective_batch_size #train_config['batch_size']
+                validation_tqdm.set_description('Instance Loss: %0.4f - Total Loss: %0.4f' % (loss.item(), total_validation_loss / number_of_instances))
         metric = total_validation_loss / number_of_instances
         logger.info('Validation Loss: %0.4f', metric)
 
