@@ -47,3 +47,10 @@ source activate testenv
 echo "Installing requirements"
 pip install --upgrade pip --quiet
 pip install -r requirements.txt --quiet
+
+# Install python only apex
+echo "Installing apex"
+git clone https://github.com/NVIDIA/apex
+cd apex
+pip install -v --no-cache-dir .
+cd ..

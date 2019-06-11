@@ -30,6 +30,7 @@ class TestTrainCommand(TestCase):
         self.args.cuda = False
         self.args.cuda_device = None
         self.args.data_parallel = False
+        self.args.fp16 = False
         self.args.resume = False
 
     def test_runs(self):
