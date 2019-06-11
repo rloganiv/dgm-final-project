@@ -3,9 +3,9 @@ from collections import defaultdict
 import torch
 from torch.utils.data import Dataset
 
-# Total Tokens: 20228
+# Total Tokens: 20483
 SPECIAL_TOKENS = ['pad', 'start', 'end']
-NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(127) for j in range(127)]
+NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(128) for j in range(128)]
 WAIT_EVENTS = ['wait:%i' % i for i in range(4096)]
 IDX_TO_TOKEN = [*SPECIAL_TOKENS, *NOTE_EVENTS, *WAIT_EVENTS]
 TOKEN_TO_IDX = {token: i for i, token in enumerate(IDX_TO_TOKEN)}
@@ -56,11 +56,28 @@ class MidiDataset(Dataset):
         self._transforms = transforms
 
     def __getitem__(self, idx):
-        instance = self._instances[idx]
+
+        tokens = self._instances[idx]
 
         if self._transforms is not None:
             for transform in self._transforms:
-                instance = transform(instance)
+                tokens = transform(tokens)
+
+        timestamps = []
+        current_time = 0
+        for token in tokens:
+            timestamps.append(current_time)
+            token_type, *values = token.split(':')
+            if token_type == 'wait':
+                current_time += int(values[0])
+
+        tokens = [TOKEN_TO_IDX[x] for x in tokens]
+        instance = {
+            'src': torch.tensor(tokens[:-1], dtype=torch.int64),
+            'tgt': torch.tensor(tokens[1:], dtype=torch.int64),
+            'timestamp': torch.tensor(timestamps[:-1], dtype=torch.float32),
+        }
+
 
         return instance
 
@@ -76,23 +93,7 @@ class MidiDataset(Dataset):
         with open(file_path, 'r') as f:
             for line in f:
                 tokens = line.strip().split()
+                instances.append(tokens)
 
-                timestamps = []
-                current_time = 0
-                for token in tokens:
-                    timestamps.append(current_time)
-                    token_type, *values = token.split(':')
-                    if token_type == 'wait':
-                        current_time += int(values[0])
-
-                # TODO: MuseNet mentions using relative position embeddings, maybe do this.
-
-                tokens = [TOKEN_TO_IDX[x] for x in line.split()]
-                instance = {
-                    'src': torch.tensor(tokens[:-1], dtype=torch.int64),
-                    'tgt': torch.tensor(tokens[1:], dtype=torch.int64),
-                    'timestamp': torch.tensor(timestamps[:-1], dtype=torch.float32),
-                }
-                instances.append(instance)
 
         return instances
