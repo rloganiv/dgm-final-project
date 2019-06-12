@@ -1,7 +1,11 @@
 from collections import defaultdict
+import logging
 
 import torch
 from torch.utils.data import Dataset
+
+logger = logging.getLogger(__name__)
+
 
 # Total Tokens: 4356
 SPECIAL_TOKENS = ['pad', 'start', 'end', 'continue']
@@ -94,6 +98,6 @@ class MidiDataset(Dataset):
             for line in f:
                 tokens = line.strip().split()
                 instances.append(tokens)
-
+        logger.debug('Max seq. len: %i', max(len(x) for x in instances))
 
         return instances
