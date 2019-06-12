@@ -45,7 +45,6 @@ def _train(args):
     fh = logging.FileHandler(args.output_dir / 'output.log')
     logging.getLogger().addHandler(fh)
 
-
     torch.manual_seed(config.get('seed', 5150))
     np.random.seed(config.get('seed', 1336) + 1)
 
@@ -59,6 +58,7 @@ def _train(args):
         lr_scheduler = None
 
     if args.cuda:
+        logger.info('Using cuda')
         if args.cuda_device is not None:
             model = model.cuda(args.cuda_device)
         else:
