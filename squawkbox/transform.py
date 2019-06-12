@@ -22,7 +22,7 @@ class TimeStretch(Transform):
             token_type, *values = token.split(':')
             if token_type == 'wait':
                 wait_time = int(values[0])
-                new_token = 'wait:%d' % (min(4095, round(wait_time * k)))
+                new_token = 'wait:%d' % (min(4095, max(1, round(wait_time * k))))
                 new_tokens.append(new_token)
             else:
                 new_tokens.append(token)
