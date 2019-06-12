@@ -37,16 +37,20 @@ ENV PATH /opt/conda/bin:$PATH
 RUN git clone https://github.com/NVIDIA/apex /apex
 RUN pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" /apex/.
 
-# Add code
 WORKDIR /workspace
+
+# Install remaining requirements
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+
+# Add code
 COPY squawkbox/ squawkbox/
 COPY setup.py setup.py
 COPY tests/ tests/
 COPY configs/ configs/
-COPY requirements.txt requirements.txt
 
-# Install squawkbox
-RUN pip install -r requirements.txt
+# Insall squawkbox
 RUN pip install -e .
 
 RUN chmod -R a+w /workspace
+
