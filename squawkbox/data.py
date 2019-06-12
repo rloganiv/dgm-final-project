@@ -3,9 +3,9 @@ from collections import defaultdict
 import torch
 from torch.utils.data import Dataset
 
-# Total Tokens: 20483
-SPECIAL_TOKENS = ['pad', 'start', 'end']
-NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(128) for j in range(128)]
+# Total Tokens: 4356
+SPECIAL_TOKENS = ['pad', 'start', 'end', 'continue']
+NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(128) for j in [0, 60]]
 WAIT_EVENTS = ['wait:%i' % i for i in range(4096)]
 IDX_TO_TOKEN = [*SPECIAL_TOKENS, *NOTE_EVENTS, *WAIT_EVENTS]
 TOKEN_TO_IDX = {token: i for i, token in enumerate(IDX_TO_TOKEN)}
