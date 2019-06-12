@@ -42,6 +42,7 @@ WORKDIR /workspace
 COPY squawkbox/ squawkbox/
 COPY setup.py setup.py
 COPY tests/ tests/
+COPY configs/ configs/
 COPY requirements.txt requirements.txt
 
 # Install squawkbox
