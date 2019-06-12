@@ -33,12 +33,13 @@ def _train(args):
     with open(args.config, 'r') as config_file:
         config = yaml.load(config_file, Loader=yaml.SafeLoader)
 
-    if args.output_dir.exists() and not args.resume:
+    if args.output_dir.exists() and not (args.resume or args.force):
         logger.error('Directory "%s" already exists. Exiting.' % str(args.output_dir))
         sys.exit(1)
     else:
         logger.info('Creating directory "%s"', args.output_dir)
-        args.output_dir.mkdir()
+        if not args.output_dir.exists():
+            args.output_dir.mkdir()
         shutil.copy(args.config, args.output_dir / 'config.yaml')
 
     # Set up logging
@@ -185,6 +186,8 @@ if __name__ == '__main__':
                         help='Enables half precision training')
     parser.add_argument('-r', '--resume', action='store_true',
                         help='will continue training existing checkpoint')
+    parser.add_argument('-f', '--force', action='store_true',
+                        help='overwrite existing checkpoint')
     args, _ = parser.parse_known_args()
 
     if os.environ.get("DEBUG"):
