@@ -29,7 +29,6 @@ class TestTrainCommand(TestCase):
         self.args.output_dir = self.tmp_dir
         self.args.cuda = False
         self.args.cuda_device = None
-        self.args.data_parallel = False
         self.args.fp16 = False
         self.args.resume = False
 

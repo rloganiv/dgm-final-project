@@ -26,10 +26,6 @@ logger = logging.getLogger(__name__)
 def _train(args):
     """Training function"""
     # Front matter, fail early if possible
-    if args.data_parallel and not args.cuda:
-        logger.error('Cannot use --data-parallel without --cuda. Exiting.')
-        sys.exit(1)
-
     if not args.config.exists():
         logger.error('Config does not exist. Exiting.')
         sys.exit(1)
@@ -60,8 +56,6 @@ def _train(args):
     if args.cuda:
         if args.cuda_device is not None:
             model = model.cuda(args.cuda_device)
-        elif args.data_parallel and not args.fp16:
-            model = torch.nn.DataParallel(model)
         else:
             model = model.cuda()
 
@@ -130,15 +124,18 @@ def _train(args):
                 instance_chunk = {key: value[new_keep_ids, :] for key, value in instance_chunk.items()}
 
                 if output_dict["hidden"] is not None:
-                    output_dict["hidden"] = [h_vec[:, new_keep_ids, :].detach() for h_vec in output_dict["hidden"]]
+                    # output_dict["hidden"] = [h_vec[:, new_keep_ids, :].detach() for h_vec in output_dict["hidden"]]
+                    output_dict["hidden"] = None
 
                 output_dict = model(hidden=output_dict["hidden"], **instance_chunk)
                 loss = output_dict['loss']
+
                 if args.fp16:
                     with amp.scale_loss(loss,  optimizer) as scaled_loss:
                         scaled_loss.backward()
                 else:
                     loss.backward()
+
 
                 step += 1
                 if not step % train_config.get('accumulation_steps', 1):
@@ -178,7 +175,8 @@ def _train(args):
                 instance_chunk = {key: value[new_keep_ids, :] for key, value in instance_chunk.items()}
 
                 if output_dict["hidden"] is not None:
-                    output_dict["hidden"] = [h_vec[:, new_keep_ids, :].detach() for h_vec in output_dict["hidden"]]
+                    # output_dict["hidden"] = [h_vec[:, new_keep_ids, :].detach() for h_vec in output_dict["hidden"]]
+                    output_dict["hidden"] = None
 
                 output_dict = model(hidden=output_dict["hidden"], **instance_chunk)
                 loss = output_dict['loss']
@@ -190,10 +188,7 @@ def _train(args):
         logger.info('Validation Loss: %0.4f', metric)
 
         # Checkpoint
-        if args.data_parallel:
-            model_state_dict = model.module.state_dict()
-        else:
-            model_state_dict = model.state_dict()
+        model_state_dict = model.state_dict()
         state_dict = {
             'model': model_state_dict,
             'optimizer': optimizer.state_dict(),
@@ -224,8 +219,6 @@ if __name__ == '__main__':
     parser.add_argument('output_dir', type=Path, help='output directory to save model to')
     parser.add_argument('--cuda', action='store_true', help='use CUDA')
     parser.add_argument('--cuda-device', type=int, help='CUDA device num', default=None)
-    parser.add_argument('--data-parallel', action='store_true',
-                        help='If enabled, trains on all GPUs')
     parser.add_argument('--fp16', action='store_true',
                         help='Enables half precision training')
     parser.add_argument('-r', '--resume', action='store_true',
