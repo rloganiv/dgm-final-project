@@ -89,9 +89,13 @@ def _train(args):
 
     transforms = train_config.get('transforms', [])
     transforms = [Transform.from_config(x) for x in transforms]
+    embedding_type = train_config.get('embedding_type', 'wallclock')
 
-    train_dataset = MidiDataset(config['train_data'], transforms=transforms)
-    validation_dataset = MidiDataset(config['validation_data'])
+    train_dataset = MidiDataset(config['train_data'],
+                                transforms=transforms,
+                                embedding_type=embedding_type)
+    validation_dataset = MidiDataset(config['validation_data'],
+                                     embedding_type=embedding_type)
 
     step = 0
     for epoch in range(start_epoch, train_config['epochs']):
