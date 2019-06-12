@@ -41,6 +41,11 @@ def _train(args):
         args.output_dir.mkdir()
         shutil.copy(args.config, args.output_dir / 'config.yaml')
 
+    # Set up logging
+    fh = logging.FileHandler(args.output_dir / 'output.log')
+    logging.getLogger().addHandler(fh)
+
+
     torch.manual_seed(config.get('seed', 5150))
     np.random.seed(config.get('seed', 1336) + 1)
 
