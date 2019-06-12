@@ -5,7 +5,6 @@ from squawkbox.transform import TimeStretch, PitchShift, VolumeShift
 def test_transform():
     example = "start note:71:60 wait:93 note:71:0 wait:86 end"
     tokens = example.strip().split()
-    print(tokens)
     transformer = TimeStretch(1.5, 1.5)
     transformed_tokens = transformer(tokens)
     assert transformed_tokens[0] == "start"
