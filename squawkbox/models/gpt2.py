@@ -22,7 +22,6 @@ class GPT2_Standard(nn.Module):
                  vocab_size,
                  n_positions,
                  n_ctx,
-                 chunk_size,
                  n_embd,
                  n_layers,
                  n_head,
@@ -35,7 +34,7 @@ class GPT2_Standard(nn.Module):
         config = GPT2Config(
             vocab_size_or_config_json_file=vocab_size,
             n_positions=n_positions,
-            n_ctx=(n_ctx + 1) * chunk_size,
+            n_ctx=n_ctx,
             n_embd=n_embd,
             n_layer=n_layers,
             n_head=n_head,
@@ -43,7 +42,7 @@ class GPT2_Standard(nn.Module):
             initializer_range=initializer_range
         )
 
-        self.n_ctx = n_ctx * chunk_size
+        self.n_ctx = n_ctx
         self.padding = padding
         self.main_model = GPT2Model(config=config)
         self.lm_head = GPT2LMHead(model_embeddings_weights=self.main_model.wte.weight, config=config)
@@ -59,13 +58,12 @@ class GPT2_Standard(nn.Module):
                 **kwargs):
         hidden_out, presents = self.main_model(input_ids=src,
                                                position_ids=timestamps,
-                                               token_type_ids=None,
-                                               past=hidden)
+                                               token_type_ids=None)
 
         logits = self.lm_head(hidden_state=hidden_out)
 
         # only keep track of the last n_ctx position's computed hidden states
-        output = {'logits': logits, 'hidden': [present[:,:,:,(-1*self.n_ctx):,:] for present in presents]}
+        output = {'logits': logits}
         if tgt is not None:
             loss_function = nn.CrossEntropyLoss(ignore_index=self.padding)
             ll = loss_function(logits.view(-1, logits.shape[-1]), tgt.view(-1))

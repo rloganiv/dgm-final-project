@@ -25,7 +25,8 @@ def _tokenize(args):
     with open(args.input, 'rb') as midi_file:
         midi = Midi.load(midi_file)
     with open(args.output, 'w') as token_file:
-        token_file.write(tokenizer.tokenize(midi))
+        for token_str in tokenizer.tokenize(midi):
+            token_file.write(token_str + '\n')
 
 
 def _process_maestro(args):
@@ -60,7 +61,8 @@ def _process_maestro(args):
             with open(fname, 'rb') as midi_file:
                 midi = Midi.load(midi_file)
             with open(args.output_dir / (split + '.txt'), 'a') as token_file:
-                token_file.write(tokenizer.tokenize(midi) + '\n')
+                for token_str in tokenizer.tokenize(midi):
+                    token_file.write(token_str + '\n')
 
 
 def _detokenize(args):

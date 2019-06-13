@@ -33,8 +33,9 @@ class Tokenizer:
         cumulative_delta_time = 0
         for i, (delta_time, event) in enumerate(midi.tracks[1].events):
             if self._max_tokens is not None:
-                if i >= self._max_tokens:
-                    break
+                if len(tokens) >= self._max_tokens:
+                    yield ' '.join(tokens[:self._max_tokens])
+                    tokens = [*tokens[self._max_tokens:], 'continue']
             cumulative_delta_time += round(ticklen_mult * delta_time // self._scale)
             if event.event_type == 'NoteOn':
                 metadata = event.metadata
@@ -44,11 +45,18 @@ class Tokenizer:
                             cumulative_delta_time = min(cumulative_delta_time, self._max_wait_time)
                         tokens.append(f'wait:{cumulative_delta_time}')
                     cumulative_delta_time = 0
-                tokens.append(f'note:{metadata["key"]}:{metadata["velocity"]}')
+                if metadata["velocity"] > 0:
+                    velocity = 60
+                else:
+                    velocity = 0
+                tokens.append(f'note:{metadata["key"]}:{velocity}')
 
         tokens.append('end')
-
-        return ' '.join(tokens)
+        if self._max_tokens is not None:
+            if len(tokens) >= self._max_tokens:
+                yield ' '.join(tokens[:self._max_tokens])
+                tokens = tokens[self._max_tokens:]
+        yield ' '.join(tokens)
 
     def detokenize(self, tokens: str) -> str:
         tokens = deque(tokens.split())

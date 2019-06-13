@@ -26,10 +26,6 @@ logger = logging.getLogger(__name__)
 def _train(args):
     """Training function"""
     # Front matter, fail early if possible
-    if args.data_parallel and not args.cuda:
-        logger.error('Cannot use --data-parallel without --cuda. Exiting.')
-        sys.exit(1)
-
     if not args.config.exists():
         logger.error('Config does not exist. Exiting.')
         sys.exit(1)
@@ -37,13 +33,18 @@ def _train(args):
     with open(args.config, 'r') as config_file:
         config = yaml.load(config_file, Loader=yaml.SafeLoader)
 
-    if args.output_dir.exists() and not args.resume:
+    if args.output_dir.exists() and not (args.resume or args.force):
         logger.error('Directory "%s" already exists. Exiting.' % str(args.output_dir))
         sys.exit(1)
     else:
         logger.info('Creating directory "%s"', args.output_dir)
-        args.output_dir.mkdir()
+        if not args.output_dir.exists():
+            args.output_dir.mkdir()
         shutil.copy(args.config, args.output_dir / 'config.yaml')
+
+    # Set up logging
+    fh = logging.FileHandler(args.output_dir / 'output.log')
+    logging.getLogger().addHandler(fh)
 
     torch.manual_seed(config.get('seed', 5150))
     np.random.seed(config.get('seed', 1336) + 1)
@@ -58,10 +59,9 @@ def _train(args):
         lr_scheduler = None
 
     if args.cuda:
+        logger.info('Using cuda')
         if args.cuda_device is not None:
             model = model.cuda(args.cuda_device)
-        elif args.data_parallel and not args.fp16:
-            model = torch.nn.DataParallel(model)
         else:
             model = model.cuda()
 
@@ -89,11 +89,14 @@ def _train(args):
 
     transforms = train_config.get('transforms', [])
     transforms = [Transform.from_config(x) for x in transforms]
+    embedding_type = train_config.get('embedding_type', 'wallclock')
 
-    train_dataset = MidiDataset(config['train_data'], transforms=transforms)
-    validation_dataset = MidiDataset(config['validation_data'])
+    train_dataset = MidiDataset(config['train_data'],
+                                transforms=transforms,
+                                embedding_type=embedding_type)
+    validation_dataset = MidiDataset(config['validation_data'],
+                                     embedding_type=embedding_type)
 
-    chunk_size = train_config.get('chunk_size', 512)
     step = 0
     for epoch in range(start_epoch, train_config['epochs']):
         logger.info('Epoch: %i', epoch)
@@ -112,38 +115,18 @@ def _train(args):
             if args.cuda:
                 instance = {key: value.cuda(args.cuda_device) for key, value in instance.items()}
 
-            instance_chunks = {key: torch.split(value, chunk_size, dim=1)
-                              for key, value in instance.items()}
+            output_dict = model(**instance)
+            loss = output_dict['loss']
+            if args.fp16:
+                with amp.scale_loss(loss,  optimizer) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                loss.backward()
 
-            output_dict = {"hidden": None}
-            keep_id_list = [] #[instance_chunk["src"][:, 0] != 0]
-            for chunk_id in range(len(instance_chunks['src'])):
-                instance_chunk = {key: value[chunk_id] for key, value in instance_chunks.items()}
-
-                for keep_id in keep_id_list:
-                    instance_chunk = {key: value[keep_id, :] for key, value in instance_chunk.items()}
-
-                # need to filter empty sequences out
-                new_keep_ids = instance_chunk["src"][:, 0] != 0
-                keep_id_list.append(new_keep_ids)
-
-                instance_chunk = {key: value[new_keep_ids, :] for key, value in instance_chunk.items()}
-
-                if output_dict["hidden"] is not None:
-                    output_dict["hidden"] = [h_vec[:, new_keep_ids, :].detach() for h_vec in output_dict["hidden"]]
-
-                output_dict = model(hidden=output_dict["hidden"], **instance_chunk)
-                loss = output_dict['loss']
-                if args.fp16:
-                    with amp.scale_loss(loss,  optimizer) as scaled_loss:
-                        scaled_loss.backward()
-                else:
-                    loss.backward()
-
-                step += 1
-                if not step % train_config.get('accumulation_steps', 1):
-                    optimizer.step()
-                    optimizer.zero_grad()
+            step += 1
+            if not step % train_config.get('accumulation_steps', 1):
+                optimizer.step()
+                optimizer.zero_grad()
 
             train_tqdm.set_description('Loss: %0.4f' % loss.item())
 
@@ -157,43 +140,22 @@ def _train(args):
                                        collate_fn=pad_and_combine_instances)
         validation_tqdm = tqdm(validation_loader, desc='Loss: NA')
         total_validation_loss = 0
-        number_of_instances = 0
+        n_tokens = 0
         for instance in validation_tqdm:
             if args.cuda:
                 instance = {key: value.cuda(args.cuda_device) for key, value in instance.items()}
 
-            keep_id_list = [instance["src"][:, 0] != 0]
-            instance_chunks = {key: torch.split(value, chunk_size, dim=1) for key, value in instance.items()}
-            output_dict = {"hidden": None}
-            for chunk_id in range(len(instance_chunks['src'])):
-                instance_chunk = {key: value[chunk_id] for key, value in instance_chunks.items()}
-
-                for keep_id in keep_id_list:
-                    instance_chunk = {key: value[keep_id, :] for key, value in instance_chunk.items()}
-
-                # need to filter empty sequences out
-                new_keep_ids = instance_chunk["src"][:, 0] != 0
-                keep_id_list.append(new_keep_ids)
-
-                instance_chunk = {key: value[new_keep_ids, :] for key, value in instance_chunk.items()}
-
-                if output_dict["hidden"] is not None:
-                    output_dict["hidden"] = [h_vec[:, new_keep_ids, :].detach() for h_vec in output_dict["hidden"]]
-
-                output_dict = model(hidden=output_dict["hidden"], **instance_chunk)
-                loss = output_dict['loss']
-                effective_batch_size = new_keep_ids.squeeze().sum().item()
-                total_validation_loss += loss.item() * effective_batch_size
-                number_of_instances += effective_batch_size #train_config['batch_size']
-                validation_tqdm.set_description('Instance Loss: %0.4f - Total Loss: %0.4f' % (loss.item(), total_validation_loss / number_of_instances))
-        metric = total_validation_loss / number_of_instances
+            output_dict = model(**instance)
+            loss = output_dict['loss']
+            n_tokens_in_batch = instance['src'].ne(0).sum().item()
+            total_validation_loss += loss.item() * n_tokens_in_batch
+            n_tokens += n_tokens_in_batch
+            validation_tqdm.set_description('Instance Loss: %0.4f - Total Loss: %0.4f' % (loss.item(), total_validation_loss / n_tokens))
+        metric = total_validation_loss / n_tokens
         logger.info('Validation Loss: %0.4f', metric)
 
         # Checkpoint
-        if args.data_parallel:
-            model_state_dict = model.module.state_dict()
-        else:
-            model_state_dict = model.state_dict()
+        model_state_dict = model.state_dict()
         state_dict = {
             'model': model_state_dict,
             'optimizer': optimizer.state_dict(),
@@ -224,12 +186,12 @@ if __name__ == '__main__':
     parser.add_argument('output_dir', type=Path, help='output directory to save model to')
     parser.add_argument('--cuda', action='store_true', help='use CUDA')
     parser.add_argument('--cuda-device', type=int, help='CUDA device num', default=None)
-    parser.add_argument('--data-parallel', action='store_true',
-                        help='If enabled, trains on all GPUs')
     parser.add_argument('--fp16', action='store_true',
                         help='Enables half precision training')
     parser.add_argument('-r', '--resume', action='store_true',
                         help='will continue training existing checkpoint')
+    parser.add_argument('-f', '--force', action='store_true',
+                        help='overwrite existing checkpoint')
     args, _ = parser.parse_known_args()
 
     if os.environ.get("DEBUG"):

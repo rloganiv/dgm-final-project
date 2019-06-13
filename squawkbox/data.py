@@ -1,11 +1,15 @@
 from collections import defaultdict
+import logging
 
 import torch
 from torch.utils.data import Dataset
 
-# Total Tokens: 20483
-SPECIAL_TOKENS = ['pad', 'start', 'end']
-NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(128) for j in range(128)]
+logger = logging.getLogger(__name__)
+
+
+# Total Tokens: 4356
+SPECIAL_TOKENS = ['pad', 'start', 'end', 'continue']
+NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(128) for j in [0, 60]]
 WAIT_EVENTS = ['wait:%i' % i for i in range(4096)]
 IDX_TO_TOKEN = [*SPECIAL_TOKENS, *NOTE_EVENTS, *WAIT_EVENTS]
 TOKEN_TO_IDX = {token: i for i, token in enumerate(IDX_TO_TOKEN)}
@@ -44,16 +48,22 @@ def pad_and_combine_instances(batch):
 
 
 class MidiDataset(Dataset):
-    def __init__(self, file_path, transforms=None):
+    def __init__(self,
+                 file_path,
+                 transforms=None,
+                 embedding_type='wallclock'):
         """
         Loads tokenized MIDI data into tensors, and optionally applies some transformation during training
 
         Parameters
         ==========
-        file_path
+        embedding_type : ``str``
+            Method for measuring timestamps. Options:  'wallclock', 'positional'
         """
+        assert embedding_type in {'wallclock', 'positional'}
         self._instances = self.read_instances(file_path)
         self._transforms = transforms
+        self._embedding_type = embedding_type
 
     def __getitem__(self, idx):
 
@@ -63,13 +73,19 @@ class MidiDataset(Dataset):
             for transform in self._transforms:
                 tokens = transform(tokens)
 
-        timestamps = []
-        current_time = 0
-        for token in tokens:
-            timestamps.append(current_time)
-            token_type, *values = token.split(':')
-            if token_type == 'wait':
-                current_time += int(values[0])
+        if self._embedding_type == 'wallclock':
+            timestamps = []
+            current_time = 0
+            for token in tokens:
+                timestamps.append(current_time)
+                token_type, *values = token.split(':')
+                if token_type == 'wait':
+                    current_time += int(values[0])
+        elif self._embedding_type == 'positional':
+            timestamps = list(range(len(tokens)))
+        else:
+            raise ConfigurationError('Bad embedding type. You must have '
+                                     'modified the dataset reader...')
 
         tokens = [TOKEN_TO_IDX[x] for x in tokens]
         instance = {
@@ -94,6 +110,6 @@ class MidiDataset(Dataset):
             for line in f:
                 tokens = line.strip().split()
                 instances.append(tokens)
-
+        logger.debug('Max seq. len: %i', max(len(x) for x in instances))
 
         return instances
