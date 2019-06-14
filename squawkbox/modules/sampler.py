@@ -7,7 +7,7 @@ from squawkbox.data import TOKEN_TO_IDX, IDX_TO_TOKEN
 class Sampler(nn.Module):
 
     def __init__(self, decoder, embedding_type, temp = None, top_k = None, top_p = None, max_length = 4096):
-        super(TemperatureSampler, self).__init__()
+        super(Sampler, self).__init__()
 
         self.decoder = decoder
         self.temp = temp
@@ -48,6 +48,8 @@ class Sampler(nn.Module):
         Sample based on probs with shape (batch_size, vocab_size) with a random sampling scheme.
         Returns sample of type LongTensor and shape (batch_size, 1).
         """
+        # position zero is an invalid item to sample
+        probs[:, 0] = 0.0
         return torch.multinomial(probs, 1)
 
     def _sample_top_k(self, probs):
@@ -101,11 +103,9 @@ class Sampler(nn.Module):
         flags = sample[:,-1] == self.EOS
         for _ in range(self.max_length):
             output = self.decoder(src = sample, timestamps = timestamps, tgt = None, hidden = hidden)
-
             # only need to keep track of the last timestamps (only matters when conditioning on src)
             if timestamps.shape[1] > 1:
                 timestamps = timestamps[:, -1].unsqueeze(-1)
-
             # get the last step's logits for the next step and temper them 
             probs = self._temper(output["logits"][:, -1, :])
             hidden = output["hidden"]
@@ -118,11 +118,12 @@ class Sampler(nn.Module):
                 sample = self._sample(probs)
 
             samples.append(sample)
-            timestamps += self.pos_adjustment(sample)
+            timestamps += self.pos_adjustment(sample.squeeze())
             
             flags |= sample[:, -1] == self.EOS
             if flags.sum().item() == batch_size:
                 break
+
 
         # append EOS token in case sequence didn't finish before max_length
         samples.append(torch.LongTensor([[self.EOS]]).expand(batch_size, 1))
