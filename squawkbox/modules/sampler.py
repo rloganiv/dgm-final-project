@@ -70,7 +70,7 @@ class Sampler(nn.Module):
         masked_probs = probs * torch.zeros_like(probs).scatter(1, sorted_indices, sorted_mask)
         return self._sample(masked_probs)
 
-    def forward(self, src = None, timestamps = None, batch_size = None, **kwargs):
+    def forward(self, src = None, timestamps = None, batch_size = None, dev = None, **kwargs):
         """
         Generate samples either conditioned on 'src' or from nothing. Either both 'src' and 'timestamps' 
         must be specified or 'batch_size'. If all three are specified, the 'batch_size' will be 
@@ -92,8 +92,8 @@ class Sampler(nn.Module):
             batch_size = src.shape[0]
         else:
             assert(batch_size is not None)
-            src = torch.LongTensor([[self.SOS]]).expand(batch_size, 1)
-            timestamps = torch.zeros(batch_size, 1, dtype=torch.float32)
+            src = torch.LongTensor([[self.SOS]]).expand(batch_size, 1).to(dev)
+            timestamps = torch.zeros(batch_size, 1, dtype=torch.float32).to(dev)
         
         samples = [src]
         sample = src
