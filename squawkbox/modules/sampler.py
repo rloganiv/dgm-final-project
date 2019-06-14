@@ -125,7 +125,7 @@ class Sampler(nn.Module):
             src = torch.cat((src, sample), -1)
 
             if self.embedding_type == 'positional':
-                new_timestamp = timestamps[:, -1] + 1
+                new_timestamp = timestamps[:, -1].unsqueeze(-1) + 1
             elif self.embedding_type == 'wallclock':
                 delta = self._delta_time(sample, dev)
                 new_timestamp = timestamps[:, -1].unsqueeze(-1) + delta
