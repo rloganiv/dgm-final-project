@@ -38,10 +38,14 @@ class Sampler(nn.Module):
         Adjusts the logged probabilities by a temperature. If the temperature is 1, they probabilities are unchanged. Returns probabilities, not logits
         """
         if self.temp is None:
-            return torch.exp(logits)
+            t = 1
+        else:
+            t = self.temp
 
-        un_normed_probs = torch.exp(logits / self.temp)
-        return F.softmax(un_normed_probs, dim = -1)
+        return F.softmax(logits / t, dim = -1)
+
+        
+
 
     def _sample(self, probs):
         """
