@@ -65,8 +65,8 @@ class Sampler(nn.Module):
         Returns sample of type LongTensor and shape (batch_size, 1).
         """
         sorted_probs, sorted_indices = probs.sort(dim=-1, descending=True)
-        cum_probs = probs.cumsum(dim=-1)
-        sorted_mask = (sorted_probs <= self.top_p).type(torch.float32)
+        cum_probs = sorted_probs.cumsum(dim=-1)
+        sorted_mask = (cum_probs <= self.top_p).type(torch.float32)
         masked_probs = probs * torch.zeros_like(probs).scatter(1, sorted_indices, sorted_mask)
         return self._sample(masked_probs)
 
