@@ -45,7 +45,8 @@ class Baseline(nn.Module):
         seq_lens = masks.sum(1)
         seq_lens, perm_idx = seq_lens.sort(0, descending=True)
         embeddings = self.embedding(src)[perm_idx]
-        tgt = tgt[perm_idx]
+        if tgt is not None:
+            tgt = tgt[perm_idx]
 
         # pack_padded_sequence
         packed = pack_padded_sequence(embeddings, lengths=seq_lens, batch_first=True)
