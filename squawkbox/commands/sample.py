@@ -27,7 +27,7 @@ def _sample(args):
     model_path = args.model_dir / "model.pt"
     config_path = args.model_dir / "config.yaml"
     samples_folder = args.model_dir / "samples"# / str(time.time())
-    
+
     if not config_path.exists():
         logger.error('Config does not exist. Exiting.')
         sys.exit(1)
@@ -42,17 +42,11 @@ def _sample(args):
         logger.info('Creating directory "%s"', samples_folder)
         samples_folder.mkdir()
 
-    if args.sample_folder_name is None:
-        samples_folder = samples_folder / str(time.time())
-    else:
-        samples_folder = samples_folder / args.sample_folder_name 
+    samples_folder = args.out
 
     if not samples_folder.exists():
         logger.info('Creating directory "%s"', samples_folder)
         samples_folder.mkdir()
-    else:
-        logger.error('Sample subfolder "%s" exists', samples_folder)
-        sys.exit(1)
 
     torch.manual_seed(config.get('seed', 5150))
     np.random.seed(config.get('seed', 1336) + 1)
@@ -71,7 +65,6 @@ def _sample(args):
 
     model = model.to(dev)
 
-    
     if args.conditional is not None:
         dataset = MidiDataset(
             args.conditional,
@@ -86,37 +79,37 @@ def _sample(args):
             collate_fn=pad_and_combine_instances
         )
         instance = next(iter(loader))
-        src = instance["src"][:,:args.conditional_len].expand(args.num_samples,-1)
-        timestamps = instance["timestamp"][:,:args.conditional_len].expand(args.num_samples,-1)
+        src = instance["src"][:,:args.conditional_len].expand(args.num_samples,-1).to(dev)
+        timestamps = instance["timestamp"][:,:args.conditional_len].expand(args.num_samples,-1).to(dev)
     else:
         src = None
         timestamps = None
 
-    with torch.no_grad():
-        logger.info("Generating samples")
-        sampler = Sampler(
-            decoder = model, 
-            embedding_type = config["training"].get("embedding_type", "wallclock"), 
-            temp = args.temperature, 
-            top_k = args.top_k, 
-            top_p = args.top_p, 
-            max_length = args.max_length        
-        )
+    logger.info("Generating samples")
+    sampler = Sampler(
+        decoder = model,
+        embedding_type = config["training"].get("embedding_type", "wallclock"),
+        temp = args.temperature,
+        top_k = args.top_k,
+        top_p = args.top_p,
+        max_length = args.max_length
+    )
+    sampler.to(dev)
 
-        samples = sampler(
-            src = src, 
-            timestamps = timestamps,
-            batch_size = args.num_samples,
-            dev = dev
-        )
+    samples = sampler(
+        src = src,
+        timestamps = timestamps,
+        batch_size = args.num_samples,
+        dev = dev
+    )
 
-    tokenizer = Tokenizer(scale=8)
+    tokenizer = Tokenizer(scale=args.scale)
     logger.info("Samples generated, saving in {}".format(samples_folder))
     for i, sample in enumerate(samples):
         tokens = " ".join(sample)
         with open(samples_folder / "sample_{}.midi".format(i) , 'wb') as midi_file:
             midi_file.write(tokenizer.detokenize(tokens))
-    
+
     if args.conditional is not None:
         original_ids = instance["src"].squeeze().tolist()
         original_toks = [IDX_TO_TOKEN[idx] for idx in original_ids]
@@ -132,10 +125,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('model_dir', type=Path, help='path to directory containing model checkpoint and .yaml config file')
-    parser.add_argument('--sample_folder_name', type=str, help='subfolder name to hold this batch of samples')
+    parser.add_argument('out', type=Path, help='subfolder name to hold this batch of samples')
     parser.add_argument('--max_length', type=int, help="max length of a sample", default=4096)
+    parser.add_argument('--scale', type=int, help="max length of a sample", default=16)
     parser.add_argument('--num_samples', type=int, help='number of samples to generate', default=32)
-    parser.add_argument('--temperature', type=float, help='float value for temperature based sampling', default=None) 
+    parser.add_argument('--temperature', type=float, help='float value for temperature based sampling', default=None)
     parser.add_argument('--cuda', action='store_true', help='use CUDA')
     parser.add_argument('--cuda-device', type=int, help='CUDA device num', default=None)
     parser.add_argument('--top-k', type=int, help='K for top-k based sampling scheme.', default=None)
