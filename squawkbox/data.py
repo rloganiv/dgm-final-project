@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 SPECIAL_TOKENS = ['pad', 'start', 'end']
 NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(128) for j in range(128)]
-WAIT_EVENTS = ['wait:%i' % i for i in range(4096)]  # Note: might need more waits
+WAIT_EVENTS = ['wait:%i' % i for i in range(1, 101)]
 IDX_TO_TOKEN = [*SPECIAL_TOKENS, *NOTE_EVENTS, *WAIT_EVENTS]
 TOKEN_TO_IDX = {token: i for i, token in enumerate(IDX_TO_TOKEN)}
 
