@@ -6,11 +6,11 @@ from torch.utils.data import Dataset
 
 logger = logging.getLogger(__name__)
 
-
-# Total Tokens: 4356
+# Total Tokens: 360
 SPECIAL_TOKENS = ['pad', 'start', 'end', 'continue']
 NOTE_EVENTS = ['note:%i:%i' % (i, j) for i in range(128) for j in [0, 60]]
-WAIT_EVENTS = ['wait:%i' % i for i in range(4096)]
+WAIT_EVENTS = ['wait:%i' % i for i in range(1, 101)]
+
 IDX_TO_TOKEN = [*SPECIAL_TOKENS, *NOTE_EVENTS, *WAIT_EVENTS]
 TOKEN_TO_IDX = {token: i for i, token in enumerate(IDX_TO_TOKEN)}
 

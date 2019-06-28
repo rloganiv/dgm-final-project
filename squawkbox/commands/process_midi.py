@@ -69,7 +69,7 @@ def _detokenize(args):
     logger.warning('Detokenizer currently only supports writing NoteOn events.')
     tokenizer = Tokenizer(scale=args.scale)
     with open(args.input, 'r') as token_file:
-        tokens = token_file.read()
+        tokens = token_file.readline()
     with open(args.output, 'wb') as midi_file:
         midi_file.write(tokenizer.detokenize(tokens))
 
