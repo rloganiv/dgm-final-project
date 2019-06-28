@@ -1,3 +1,4 @@
+from pytorch_pretrained_bert.optimization import BertAdam
 import torch
 
 from squawkbox.utils import Registrable
@@ -9,7 +10,8 @@ class Optimizer(Registrable, torch.optim.Optimizer):
 
 Registrable._registry[Optimizer] = {
     "adam": torch.optim.Adam,
-    "sgd": torch.optim.SGD
+    "sgd": torch.optim.SGD,
+    "bert-adam": BertAdam
 }
 
 

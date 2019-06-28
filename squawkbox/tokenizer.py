@@ -32,11 +32,11 @@ class Tokenizer:
         tokens = []
 
         ppqn = midi.header.pulses_per_quarter_note  # ticks per quarter note
-        logger.info('pulses per quarter note: %i', ppqn)
+        logger.debug('pulses per quarter note: %i', ppqn)
         tempo = midi.tracks[0].events[0][1].metadata['tempo']  # micro-seconds per quarter note
-        logger.info('tempo: %i', tempo)
+        logger.debug('tempo: %i', tempo)
         ticklen = tempo / ppqn  # micro-seconds per tick
-        logger.info('ticklen: %f', ticklen)
+        logger.debug('ticklen: %f', ticklen)
         ticklen_mult = DEFAULT_TICKLEN / ticklen
         # bpm = 6e7 // tempo # quarter notes per minute
         # tokens.append(f'tempo:{int(bpm)}')
@@ -46,8 +46,9 @@ class Tokenizer:
         cumulative_delta_time = 0
         for i, (delta_time, event) in enumerate(midi.tracks[1].events):
             if self._max_tokens is not None:
-                if i >= self._max_tokens:
-                    break
+                if len(tokens) >= self._max_tokens:
+                    yield ' '.join(tokens[:self._max_tokens])
+                    tokens = ['continue', *tokens[self._max_tokens:]]
             cumulative_delta_time += round(delta_time / ticklen_mult)
             if event.event_type == 'NoteOn':
                 metadata = event.metadata
@@ -62,8 +63,11 @@ class Tokenizer:
                 tokens.append(f'note:{metadata["key"]}:{velocity}')
 
         tokens.append('end')
-
-        return ' '.join(tokens)
+        if self._max_tokens is not None:
+            if len(tokens) >= self._max_tokens:
+                yield ' '.join(tokens[:self._max_tokens])
+                tokens = tokens[self._max_tokens:]
+        yield ' '.join(tokens)
 
     def detokenize(self, tokens: str) -> str:
         tokens = deque(tokens.split())
