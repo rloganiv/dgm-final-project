@@ -11,19 +11,21 @@ DEFAULT_HEADER = b'MThd\x00\x00\x00\x06\x00\x01\x00\x02\x01\xe0'
 DEFAULT_TEMPO_MAP = b'MTrk\x00\x00\x00\x13\x00\xffQ\x03\x07\xa1 \x00\xffX\x04\x04\x02\x18\x08\x01\xff/\x00'
 
 
-def split_waits(delta_time):
-    n_waits = delta_time // 100
+def split_waits(delta_time, scale):
+    n_waits = delta_time // (scale * 100)
     out = ['wait:100'] * n_waits
-    remainder = delta_time % 100
+    remainder = delta_time % (scale * 100)
     if remainder > 0:
-        out.append(f'wait:{remainder}')
+        remainder = round(remainder / scale)
+        if remainder != 0:
+            out.append(f'wait:{remainder}')
     return out
 
 
 # TODO: Add configuration options.
 class Tokenizer:
 
-    def __init__(self, scale=1, max_tokens=None, max_wait_time=None):
+    def __init__(self, scale=10, max_tokens=None, max_wait_time=None):
         self._scale = scale
         self._max_tokens = max_tokens
         self._max_wait_time = max_wait_time
@@ -54,7 +56,8 @@ class Tokenizer:
                 metadata = event.metadata
                 if cumulative_delta_time > 0:
                     if tokens[-1] != 'start':
-                        tokens.extend(split_waits(cumulative_delta_time))
+                        tokens.extend(split_waits(cumulative_delta_time,
+                                                  self._scale))
                     cumulative_delta_time = 0
                 if metadata['velocity'] > 0:
                     velocity = 60

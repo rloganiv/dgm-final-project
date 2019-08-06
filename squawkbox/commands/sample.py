@@ -48,8 +48,8 @@ def _sample(args):
         logger.info('Creating directory "%s"', samples_folder)
         samples_folder.mkdir()
 
-    torch.manual_seed(config.get('seed', 5150))
-    np.random.seed(config.get('seed', 1336) + 1)
+    # torch.manual_seed(config.get('seed', 5150))
+    # np.random.seed(config.get('seed', 1336) + 1)
 
     model = Model.from_config(config['model'])
     state_dict = torch.load(model_path)
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     parser.add_argument('model_dir', type=Path, help='path to directory containing model checkpoint and .yaml config file')
     parser.add_argument('out', type=Path, help='subfolder name to hold this batch of samples')
     parser.add_argument('--max_length', type=int, help="max length of a sample", default=4096)
-    parser.add_argument('--scale', type=int, help="max length of a sample", default=16)
+    parser.add_argument('--scale', type=int, help="max length of a sample", default=1)
     parser.add_argument('--num_samples', type=int, help='number of samples to generate', default=32)
     parser.add_argument('--temperature', type=float, help='float value for temperature based sampling', default=None)
     parser.add_argument('--cuda', action='store_true', help='use CUDA')
